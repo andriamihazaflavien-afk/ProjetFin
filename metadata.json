@@ -1,0 +1,6 @@
+{
+  "name": "GESTION RH – CONGÉS & ABSENCES",
+  "description": "Système professionnel de gestion des employés, types de congés, demandes d'absence, calculs automatiques des soldes, statistiques et exports PDF/Excel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
