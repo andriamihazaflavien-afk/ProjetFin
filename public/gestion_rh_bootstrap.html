@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GESTION RH – CONGÉS & ABSENCES (Édition HTML / CSS / JS / Bootstrap)</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Google Fonts: Inter / Plus Jakarta Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Chart.js, jsPDF, AutoTable, SheetJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f8f9fa;
+      color: #212529;
+    }
+    .sidebar {
+      min-height: calc(100vh - 56px);
+      background-color: #ffffff;
+      border-right: 1px solid #dee2e6;
+    }
+    .sidebar .nav-link {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #495057;
+      padding: 0.6rem 1rem;
+      border-radius: 0.375rem;
+      margin-bottom: 0.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .sidebar .nav-link:hover {
+      background-color: #f1f3f5;
+      color: #0d6efd;
+    }
+    .sidebar .nav-link.active {
+      background-color: #0d6efd;
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .card-kpi {
+      border: 1px solid #e9ecef;
+      border-radius: 0.75rem;
+      box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.04);
+      background: #fff;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+      font-family: SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .badge-status-accorde {
+      background-color: #d1e7dd;
+      color: #0f5132;
+      border: 1px solid #badbcc;
+    }
+    .badge-status-attente {
+      background-color: #fff3cd;
+      color: #664d03;
+      border: 1px solid #ffecb5;
+    }
+    .badge-status-refuse {
+      background-color: #f8d7da;
+      color: #842029;
+      border: 1px solid #f5c2c7;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3 py-2 sticky-top shadow-sm">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex items-center gap-2 font-bold" href="#">
+        <span class="badge bg-primary fs-6 px-2 py-1">RH</span>
+        <span class="fw-bold tracking-tight">GESTION RH – CONGÉS & ABSENCES</span>
+      </a>
+
+      <div class="d-flex align-items-center gap-3 ms-auto">
+        <!-- Active Year Selector -->
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-secondary text-white border-secondary">Exercice</span>
+          <select id="globalYearSelect" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="changeActiveYear(this.value)">
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+            <option value="2027">2027</option>
+          </select>
+        </div>
+
+        <!-- Role Badge -->
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-light dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-shield-check text-warning"></i>
+            <span id="navRoleLabel">Admin</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow">
+            <li><h6 class="dropdown-header">Changer de rôle actif</h6></li>
+            <li><a class="dropdown-item" href="#" onclick="switchRole('ADMINISTRATEUR')"><i class="bi bi-shield me-2 text-primary"></i>Administrateur</a></li>
+            <li><a class="dropdown-item" href="#" onclick="switchRole('RESPONSABLE_RH')"><i class="bi bi-person-badge me-2 text-success"></i>Responsable RH</a></li>
+            <li><a class="dropdown-item" href="#" onclick="switchRole('EMPLOYE')"><i class="bi bi-person me-2 text-info"></i>Employé</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block sidebar py-3">
+        <div class="position-sticky">
+          <h6 class="sidebar-heading px-3 text-muted text-uppercase fs-7 fw-bold mb-2">Navigation</h6>
+          <ul class="nav flex-column" id="sidebarMenu">
+            <li class="nav-item">
+              <a class="nav-link active" href="#" onclick="showView('dashboard', this)">
+                <i class="bi bi-speedometer2"></i> Dashboard
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('employees', this)">
+                <i class="bi bi-people"></i> Employés
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('leave-types', this)">
+                <i class="bi bi-tags"></i> Types de congés
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('requests', this)">
+                <i class="bi bi-calendar-check"></i> Demandes de congés
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('validation', this)">
+                <i class="bi bi-check2-square"></i> Validation <span class="badge bg-warning text-dark ms-auto" id="pendingCountBadge">0</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('balances', this)">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Soldes de congés
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('individual-recap', this)">
+                <i class="bi bi-file-earmark-person"></i> Fiches récapitulatives
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('absenteeism', this)">
+                <i class="bi bi-bar-chart-steps"></i> Absentéisme
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('search-direction', this)">
+                <i class="bi bi-search"></i> Par Direction
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('reports', this)">
+                <i class="bi bi-file-earmark-pdf"></i> Rapports & PDF
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" onclick="showView('settings', this)">
+                <i class="bi bi-gear"></i> Paramètres
+              </a>
+            </li>
+          </ul>
+
+          <div class="mt-4 pt-3 border-top px-3">
+            <small class="text-muted d-block">Connecté :</small>
+            <strong class="d-block fs-7 text-truncate" id="currentUserDisplay">Administrateur</strong>
+            <button class="btn btn-outline-danger btn-sm w-100 mt-2 fs-8" onclick="resetDemoDataPrompt()">
+              <i class="bi bi-arrow-counterclockwise"></i> Restaurer Démo
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main Content Viewport -->
+      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+        <!-- Alert Banner -->
+        <div id="globalAlert" class="alert alert-dismissible fade show d-none" role="alert">
+          <span id="globalAlertText"></span>
+          <button type="button" class="btn-close" onclick="hideAlert()"></button>
+        </div>
+
+        <!-- 1. DASHBOARD VIEW -->
+        <div id="view-dashboard" class="content-view">
+          <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Tableau de Bord RH & Congés</h1>
+            <div class="btn-toolbar mb-2 mb-md-0 gap-2">
+              <button class="btn btn-sm btn-outline-secondary" onclick="exportAnnualPdf()">
+                <i class="bi bi-file-earmark-pdf text-danger"></i> Rapport PDF
+              </button>
+              <button class="btn btn-sm btn-primary" onclick="openNewRequestModal()">
+                <i class="bi bi-plus-lg"></i> Nouvelle Demande
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards Strip -->
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4 col-xl-2">
+              <div class="card card-kpi p-3 text-center">
+                <small class="text-muted text-uppercase fw-semibold fs-8">Effectif Total</small>
+                <h3 class="fw-bold my-1 tabular-nums" id="kpiTotalEmp">0</h3>
+                <small class="text-muted fs-8">Employés actifs</small>
+              </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+              <div class="card card-kpi p-3 text-center">
+                <small class="text-muted text-uppercase fw-semibold fs-8">Demandes</small>
+                <h3 class="fw-bold my-1 tabular-nums" id="kpiTotalDem">0</h3>
+                <small class="text-muted fs-8">Enregistrées</small>
+              </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+              <div class="card card-kpi p-3 text-center border-success">
+                <small class="text-success text-uppercase fw-semibold fs-8">Accordées</small>
+                <h3 class="fw-bold my-1 tabular-nums text-success" id="kpiAccorde">0</h3>
+                <small class="text-success fs-8">Validées</small>
+              </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+              <div class="card card-kpi p-3 text-center border-warning">
+                <small class="text-warning text-uppercase fw-semibold fs-8">En Attente</small>
+                <h3 class="fw-bold my-1 tabular-nums text-warning" id="kpiAttente">0</h3>
+                <small class="text-warning fs-8">À traiter</small>
+              </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+              <div class="card card-kpi p-3 text-center border-danger">
+                <small class="text-danger text-uppercase fw-semibold fs-8">Refusées</small>
+                <h3 class="fw-bold my-1 tabular-nums text-danger" id="kpiRefuse">0</h3>
+                <small class="text-danger fs-8">Rejetées</small>
+              </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+              <div class="card card-kpi p-3 text-center border-info">
+                <small class="text-info text-uppercase fw-semibold fs-8">Jours d'Absence</small>
+                <h3 class="fw-bold my-1 tabular-nums text-primary" id="kpiJoursAbs">0 j</h3>
+                <small class="text-muted fs-8">Accordés cumulés</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="row g-4 mb-4">
+            <div class="col-lg-7">
+              <div class="card card-kpi p-4 h-100">
+                <h6 class="fw-bold mb-1">Histogramme des Demandes par Statut</h6>
+                <small class="text-muted mb-3 d-block">Volume des congés selon leur étape de traitement</small>
+                <div style="height: 260px;">
+                  <canvas id="chartStatusHisto"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-5">
+              <div class="card card-kpi p-4 h-100">
+                <h6 class="fw-bold mb-1">Répartition en Pourcentage (%)</h6>
+                <small class="text-muted mb-3 d-block">Formule : (Demandes / Total) × 100</small>
+                <div style="height: 260px;" class="d-flex justify-content-center">
+                  <canvas id="chartStatusPie"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Directions and Categories -->
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="card card-kpi p-4">
+                <h6 class="fw-bold mb-3">Demandes par Direction</h6>
+                <div style="height: 240px;">
+                  <canvas id="chartDirectionBar"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="card card-kpi p-4">
+                <h6 class="fw-bold mb-3">Jours d'Absence par Catégorie Professionnelle</h6>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle fs-7">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Catégorie</th>
+                        <th class="text-center">Jours Accordés</th>
+                        <th>Proportion</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tbodyCategories"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. EMPLOYEES VIEW -->
+        <div id="view-employees" class="content-view d-none">
+          <div class="d-flex justify-content-between flex-wrap align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Gestion des Employés</h1>
+            <div class="btn-toolbar gap-2">
+              <button class="btn btn-sm btn-outline-danger" onclick="exportEmployeesPdf()">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+              </button>
+              <button class="btn btn-sm btn-outline-success" onclick="exportEmployeesExcel()">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
+              </button>
+              <button class="btn btn-sm btn-primary" onclick="openEmployeeModal()">
+                <i class="bi bi-person-plus"></i> Ajouter un employé
+              </button>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="card card-kpi p-3 mb-3">
+            <div class="row g-2">
+              <div class="col-md-4">
+                <input type="text" id="empSearchInput" class="form-control form-control-sm" placeholder="Rechercher par matricule ou nom..." onkeyup="renderEmployeesTable()">
+              </div>
+              <div class="col-md-3">
+                <select id="empDirFilter" class="form-select form-select-sm" onchange="renderEmployeesTable()">
+                  <option value="Toutes">Toutes directions</option>
+                  <option value="Ressources Humaines">Ressources Humaines</option>
+                  <option value="Finance & Comptabilité">Finance & Comptabilité</option>
+                  <option value="Systèmes d'Information">Systèmes d'Information</option>
+                  <option value="Commercial & Marketing">Commercial & Marketing</option>
+                  <option value="Opérations & Logistique">Opérations & Logistique</option>
+                  <option value="Direction Générale">Direction Générale</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select id="empCatFilter" class="form-select form-select-sm" onchange="renderEmployeesTable()">
+                  <option value="Toutes">Toutes catégories</option>
+                  <option value="Cadre">Cadre</option>
+                  <option value="Maîtrise">Maîtrise</option>
+                  <option value="Employé">Employé</option>
+                  <option value="Ouvrier">Ouvrier</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select id="empSexeFilter" class="form-select form-select-sm" onchange="renderEmployeesTable()">
+                  <option value="Tous">Tous sexes</option>
+                  <option value="Masculin">Masculin</option>
+                  <option value="Féminin">Féminin</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="card card-kpi shadow-sm overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 fs-7">
+                <thead class="table-light">
+                  <tr>
+                    <th>Matricule</th>
+                    <th>Nom & Prénom</th>
+                    <th>Direction</th>
+                    <th>Catégorie</th>
+                    <th>Sexe</th>
+                    <th class="text-center">Embauche</th>
+                    <th>Fonction</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyEmployees"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. LEAVE TYPES VIEW -->
+        <div id="view-leave-types" class="content-view d-none">
+          <div class="d-flex justify-content-between flex-wrap align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Nomenclature des Types de Congés</h1>
+            <button class="btn btn-sm btn-primary" onclick="openLeaveTypeModal()">
+              <i class="bi bi-plus-circle"></i> Nouveau Type de Congé
+            </button>
+          </div>
+          <div class="row g-3" id="cardsLeaveTypes"></div>
+        </div>
+
+        <!-- 4. REQUESTS VIEW -->
+        <div id="view-requests" class="content-view d-none">
+          <div class="d-flex justify-content-between flex-wrap align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Demandes de Congés & Absences</h1>
+            <div class="btn-toolbar gap-2">
+              <button class="btn btn-sm btn-outline-danger" onclick="exportRequestsPdf()">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+              </button>
+              <button class="btn btn-sm btn-outline-success" onclick="exportRequestsExcel()">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
+              </button>
+              <button class="btn btn-sm btn-primary" onclick="openNewRequestModal()">
+                <i class="bi bi-plus-lg"></i> Nouvelle Demande
+              </button>
+            </div>
+          </div>
+
+          <div class="card card-kpi p-3 mb-3">
+            <div class="row g-2">
+              <div class="col-md-3">
+                <input type="text" id="reqSearchInput" class="form-control form-control-sm" placeholder="Recherche rapide..." onkeyup="renderRequestsTable()">
+              </div>
+              <div class="col-md-3">
+                <select id="reqDirFilter" class="form-select form-select-sm" onchange="renderRequestsTable()">
+                  <option value="Toutes">Toutes directions</option>
+                  <option value="Ressources Humaines">Ressources Humaines</option>
+                  <option value="Finance & Comptabilité">Finance & Comptabilité</option>
+                  <option value="Systèmes d'Information">Systèmes d'Information</option>
+                  <option value="Commercial & Marketing">Commercial & Marketing</option>
+                  <option value="Opérations & Logistique">Opérations & Logistique</option>
+                  <option value="Direction Générale">Direction Générale</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select id="reqTypeFilter" class="form-select form-select-sm" onchange="renderRequestsTable()">
+                  <option value="Tous">Tous types</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select id="reqStatusFilter" class="form-select form-select-sm" onchange="renderRequestsTable()">
+                  <option value="Tous">Tous statuts</option>
+                  <option value="Accordé">Accordé</option>
+                  <option value="En attente">En attente</option>
+                  <option value="Refusé">Refusé</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select id="reqYearFilter" class="form-select form-select-sm" onchange="renderRequestsTable()">
+                  <option value="2025">2025</option>
+                  <option value="2026" selected>2026</option>
+                  <option value="2027">2027</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-kpi shadow-sm overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 fs-7">
+                <thead class="table-light">
+                  <tr>
+                    <th>Réf.</th>
+                    <th>Collaborateur</th>
+                    <th>Direction</th>
+                    <th>Type de congé</th>
+                    <th>Période</th>
+                    <th class="text-center">Durée</th>
+                    <th>Statut</th>
+                    <th>Motif / Validateur</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyRequests"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. VALIDATION VIEW -->
+        <div id="view-validation" class="content-view d-none">
+          <div class="d-flex justify-content-between align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Validation des Demandes de Congé</h1>
+            <span class="badge bg-primary fs-7" id="validationCountHeader">0 en attente</span>
+          </div>
+          <div class="row g-3" id="validationCardsContainer"></div>
+        </div>
+
+        <!-- 6. BALANCES VIEW -->
+        <div id="view-balances" class="content-view d-none">
+          <div class="d-flex justify-content-between align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Synthèse Globale des Soldes de Congés</h1>
+            <div class="btn-toolbar gap-2">
+              <button class="btn btn-sm btn-outline-danger" onclick="exportBalancesPdf()">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+              </button>
+              <button class="btn btn-sm btn-outline-success" onclick="exportBalancesExcel()">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
+              </button>
+            </div>
+          </div>
+          <div class="card card-kpi shadow-sm overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 fs-7">
+                <thead class="table-light">
+                  <tr>
+                    <th>Matricule</th>
+                    <th>Collaborateur</th>
+                    <th>Direction</th>
+                    <th class="text-center">CA Restant</th>
+                    <th class="text-center">CM Restant</th>
+                    <th class="text-center">CE Restant</th>
+                    <th class="text-center">Total Accordé</th>
+                    <th class="text-center">Alerte Solde</th>
+                    <th class="text-end">Fiche</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyBalances"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. INDIVIDUAL RECAP VIEW -->
+        <div id="view-individual-recap" class="content-view d-none">
+          <div class="d-flex justify-content-between align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Fiche Récapitulative Individuelle des Congés</h1>
+            <button class="btn btn-sm btn-primary" onclick="downloadIndividualRecapPdf()">
+              <i class="bi bi-file-earmark-pdf"></i> Télécharger Fiche PDF
+            </button>
+          </div>
+
+          <!-- Employee picker -->
+          <div class="card card-kpi p-3 mb-4">
+            <div class="row align-items-center">
+              <div class="col-md-2 fw-bold fs-7">Sélectionner l'agent :</div>
+              <div class="col-md-6">
+                <select id="recapEmployeeSelect" class="form-select form-select-sm" onchange="renderIndividualRecap()"></select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recap Sheet Paper Style -->
+          <div class="card card-kpi p-4 shadow-sm" id="recapSheetContent">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- 8. ABSENTEEISM VIEW -->
+        <div id="view-absenteeism" class="content-view d-none">
+          <div class="d-flex justify-content-between align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Classement par Absentéisme & Jours Accordés</h1>
+            <div class="btn-toolbar gap-2">
+              <button class="btn btn-sm btn-outline-danger" onclick="exportAbsenteeismPdf()">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+              </button>
+              <button class="btn btn-sm btn-outline-success" onclick="exportAbsenteeismExcel()">
+                <i class="bi bi-file-earmark-excel"></i> Export Excel
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary Strip -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="card card-kpi p-3 text-center">
+                <small class="text-muted text-uppercase fs-8">Cumul Jours d'Absence</small>
+                <h3 class="fw-bold my-1 text-danger tabular-nums" id="absTotalDays">0 j</h3>
+                <small class="text-muted fs-8">Demandes accordées</small>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card card-kpi p-3 text-center">
+                <small class="text-muted text-uppercase fs-8">Agents concernés</small>
+                <h3 class="fw-bold my-1 text-primary tabular-nums" id="absTotalAgents">0</h3>
+                <small class="text-muted fs-8">Avec au moins 1 jour</small>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card card-kpi p-3 text-center">
+                <small class="text-muted text-uppercase fs-8">Moyenne par employé</small>
+                <h3 class="fw-bold my-1 text-success tabular-nums" id="absAvgDays">0 j</h3>
+                <small class="text-muted fs-8">Taux moyen d'absence</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-kpi shadow-sm overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 fs-7">
+                <thead class="table-light">
+                  <tr>
+                    <th class="text-center">Rang</th>
+                    <th>Matricule</th>
+                    <th>Nom collaborateur</th>
+                    <th>Direction</th>
+                    <th>Catégorie</th>
+                    <th class="text-center">Demandes Acc.</th>
+                    <th class="text-center">Total Jours Absents</th>
+                    <th class="text-center">% Consommation</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyAbsenteeism"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 9. SEARCH BY DIRECTION -->
+        <div id="view-search-direction" class="content-view d-none">
+          <div class="d-flex justify-content-between align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Recherche des Demandes par Direction</h1>
+          </div>
+
+          <div class="card card-kpi p-3 mb-3">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fs-7 fw-semibold">Direction</label>
+                <select id="searchDirSelect" class="form-select form-select-sm" onchange="renderDirectionSearch()">
+                  <option value="Ressources Humaines">Ressources Humaines</option>
+                  <option value="Finance & Comptabilité">Finance & Comptabilité</option>
+                  <option value="Systèmes d'Information">Systèmes d'Information</option>
+                  <option value="Commercial & Marketing">Commercial & Marketing</option>
+                  <option value="Opérations & Logistique">Opérations & Logistique</option>
+                  <option value="Direction Générale">Direction Générale</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fs-7 fw-semibold">Statut</label>
+                <select id="searchDirStatus" class="form-select form-select-sm" onchange="renderDirectionSearch()">
+                  <option value="Tous">Tous statuts</option>
+                  <option value="Accordé">Accordé</option>
+                  <option value="En attente">En attente</option>
+                  <option value="Refusé">Refusé</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Totals -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <div class="card card-kpi p-3 text-center">
+                <small class="text-muted fs-8 text-uppercase">Demandeurs distincts</small>
+                <h4 class="fw-bold my-1" id="searchDirDistinctEmp">0</h4>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card card-kpi p-3 text-center">
+                <small class="text-muted fs-8 text-uppercase">Total demandes</small>
+                <h4 class="fw-bold my-1 text-primary" id="searchDirTotalDem">0</h4>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card card-kpi p-3 text-center">
+                <small class="text-muted fs-8 text-uppercase">Jours accordés</small>
+                <h4 class="fw-bold my-1 text-success" id="searchDirTotalDays">0 j</h4>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-kpi shadow-sm overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 fs-7">
+                <thead class="table-light">
+                  <tr>
+                    <th>Matricule</th>
+                    <th>Nom employé</th>
+                    <th>Type</th>
+                    <th>Période</th>
+                    <th class="text-center">Jours</th>
+                    <th>Statut</th>
+                    <th>Motif</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodySearchDir"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 10. REPORTS VIEW -->
+        <div id="view-reports" class="content-view d-none">
+          <div class="d-flex justify-content-between align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Centre d'Édition des Rapports & Exports PDF / Excel</h1>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6 col-lg-4">
+              <div class="card card-kpi p-4 h-100">
+                <h6 class="fw-bold"><i class="bi bi-file-earmark-pdf text-danger me-2"></i>Rapport Statistique Annuel</h6>
+                <p class="text-muted fs-8 mt-1">Bilan managérial complet avec histogrammes, taux de validation et répartition par pôle.</p>
+                <button class="btn btn-sm btn-primary mt-auto" onclick="exportAnnualPdf()"><i class="bi bi-download"></i> Télécharger PDF</button>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <div class="card card-kpi p-4 h-100">
+                <h6 class="fw-bold"><i class="bi bi-file-earmark-pdf text-danger me-2"></i>Classement Absentéisme</h6>
+                <p class="text-muted fs-8 mt-1">Tableau officiel ordonné des absences accordées avec cumuls et moyennes.</p>
+                <div class="d-flex gap-2 mt-auto">
+                  <button class="btn btn-sm btn-primary flex-fill" onclick="exportAbsenteeismPdf()">PDF</button>
+                  <button class="btn btn-sm btn-outline-success flex-fill" onclick="exportAbsenteeismExcel()">Excel</button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <div class="card card-kpi p-4 h-100">
+                <h6 class="fw-bold"><i class="bi bi-file-earmark-spreadsheet text-success me-2"></i>État Global des Soldes</h6>
+                <p class="text-muted fs-8 mt-1">Tableau consolidé de tous les droits et soldes restants avec alertes d'épuisement.</p>
+                <div class="d-flex gap-2 mt-auto">
+                  <button class="btn btn-sm btn-primary flex-fill" onclick="exportBalancesPdf()">PDF</button>
+                  <button class="btn btn-sm btn-outline-success flex-fill" onclick="exportBalancesExcel()">Excel</button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <div class="card card-kpi p-4 h-100">
+                <h6 class="fw-bold"><i class="bi bi-calendar3 text-warning me-2"></i>Registre des Demandes</h6>
+                <p class="text-muted fs-8 mt-1">Extraction de toutes les demandes avec motifs, dates de validation et durées.</p>
+                <div class="d-flex gap-2 mt-auto">
+                  <button class="btn btn-sm btn-primary flex-fill" onclick="exportRequestsPdf()">PDF</button>
+                  <button class="btn btn-sm btn-outline-success flex-fill" onclick="exportRequestsExcel()">Excel</button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+              <div class="card card-kpi p-4 h-100">
+                <h6 class="fw-bold"><i class="bi bi-people text-info me-2"></i>Répertoire du Personnel</h6>
+                <p class="text-muted fs-8 mt-1">Fichier de tous les salariés enregistrés, directions, fonctions et dates d'embauche.</p>
+                <div class="d-flex gap-2 mt-auto">
+                  <button class="btn btn-sm btn-primary flex-fill" onclick="exportEmployeesPdf()">PDF</button>
+                  <button class="btn btn-sm btn-outline-success flex-fill" onclick="exportEmployeesExcel()">Excel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11. SETTINGS VIEW -->
+        <div id="view-settings" class="content-view d-none">
+          <div class="d-flex justify-content-between align-items-center pt-1 pb-2 mb-3 border-bottom">
+            <h1 class="h4 fw-bold">Paramètres Système & Règles Métier</h1>
+          </div>
+          <div class="card card-kpi p-4 max-w-xl">
+            <form onsubmit="saveSettings(event)">
+              <div class="mb-3">
+                <label class="form-label fs-7 fw-bold">Nom de l'Organisation (En-tête PDF)</label>
+                <input type="text" id="settingOrgName" class="form-control form-control-sm" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fs-7 fw-bold">Mode de calcul des jours de congé</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="calcMode" id="calcOuvrables" value="ouvrables" checked>
+                  <label class="form-check-label fs-7" for="calcOuvrables">
+                    <strong>Jours Ouvrables (Lundi au Vendredi)</strong> – Exclut week-ends et jours fériés
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="calcMode" id="calcOuvres" value="ouvres">
+                  <label class="form-check-label fs-7" for="calcOuvres">
+                    <strong>Jours Ouvrés (Lundi au Samedi)</strong> – Exclut dimanches et jours fériés
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="calcMode" id="calcCalendaires" value="calendaires">
+                  <label class="form-check-label fs-7" for="calcCalendaires">
+                    <strong>Jours Calendaires</strong> – Tous les jours civils
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fs-7 fw-bold">Seuil d'alerte « Solde Faible » (%)</label>
+                <input type="number" id="settingSeuilFaible" class="form-control form-control-sm w-25" min="5" max="50" value="20">
+              </div>
+              <button type="submit" class="btn btn-sm btn-primary">Enregistrer les paramètres</button>
+            </form>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT EMPLOYEE -->
+  <div class="modal fade" id="modalEmployee" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form onsubmit="saveEmployee(event)">
+          <div class="modal-header">
+            <h6 class="modal-title fw-bold" id="modalEmpTitle">Ajouter un employé</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body fs-7">
+            <input type="hidden" id="empFormId">
+            <div class="mb-2">
+              <label class="form-label fw-bold">Matricule *</label>
+              <input type="text" id="empFormMatricule" class="form-control form-control-sm font-monospace text-uppercase" required placeholder="Ex: M0180">
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold">Nom complet *</label>
+              <input type="text" id="empFormNom" class="form-control form-control-sm" required placeholder="Ex: Paul Martin">
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold">Direction *</label>
+              <select id="empFormDirection" class="form-select form-select-sm" required>
+                <option value="Ressources Humaines">Ressources Humaines</option>
+                <option value="Finance & Comptabilité">Finance & Comptabilité</option>
+                <option value="Systèmes d'Information">Systèmes d'Information</option>
+                <option value="Commercial & Marketing">Commercial & Marketing</option>
+                <option value="Opérations & Logistique">Opérations & Logistique</option>
+                <option value="Direction Générale">Direction Générale</option>
+              </select>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label fw-bold">Sexe *</label>
+                <select id="empFormSexe" class="form-select form-select-sm">
+                  <option value="Masculin">Masculin</option>
+                  <option value="Féminin">Féminin</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-bold">Catégorie *</label>
+                <select id="empFormCategorie" class="form-select form-select-sm">
+                  <option value="Cadre">Cadre</option>
+                  <option value="Maîtrise">Maîtrise</option>
+                  <option value="Employé">Employé</option>
+                  <option value="Ouvrier">Ouvrier</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold">Année d'embauche *</label>
+              <input type="number" id="empFormAnnee" class="form-control form-control-sm" min="1980" max="2030" value="2023" required>
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-bold">Poste / Fonction</label>
+              <input type="text" id="empFormPoste" class="form-control form-control-sm" placeholder="Ex: Analyste Développeur">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-sm btn-primary">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT REQUEST -->
+  <div class="modal fade" id="modalRequest" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form onsubmit="saveRequest(event)">
+          <div class="modal-header">
+            <h6 class="modal-title fw-bold" id="modalReqTitle">Créer une demande de congé</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body fs-7">
+            <input type="hidden" id="reqFormId">
+            <div class="mb-2">
+              <label class="form-label fw-bold">Employé demandeur *</label>
+              <select id="reqFormMatricule" class="form-select form-select-sm" onchange="updateFormEmployeeInfo()" required></select>
+            </div>
+            <div class="p-2 mb-2 bg-light rounded border text-muted fs-8" id="reqFormEmpInfo">
+              Sélectionnez un employé...
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-8">
+                <label class="form-label fw-bold">Type de congé *</label>
+                <select id="reqFormCodeType" class="form-select form-select-sm" onchange="recalculateFormDays()" required></select>
+              </div>
+              <div class="col-4">
+                <label class="form-label fw-bold">Année *</label>
+                <input type="number" id="reqFormAnnee" class="form-control form-control-sm font-monospace" value="2026" required>
+              </div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label fw-bold">Date Début *</label>
+                <input type="date" id="reqFormDateDebut" class="form-control form-control-sm" onchange="recalculateFormDays()" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-bold">Date Fin *</label>
+                <input type="date" id="reqFormDateFin" class="form-control form-control-sm" onchange="recalculateFormDays()" required>
+              </div>
+            </div>
+            <div class="alert alert-info py-2 px-3 fs-8 mb-2 d-flex justify-content-between align-items-center">
+              <span>Durée automatique calculée :</span>
+              <strong class="fs-6 font-monospace" id="reqFormCalculatedDays">0 j</strong>
+            </div>
+            <div id="reqFormBalanceWarning" class="alert alert-warning py-2 px-3 fs-8 d-none"></div>
+            <div class="mb-2">
+              <label class="form-label fw-bold">Motif / Justification *</label>
+              <input type="text" id="reqFormMotif" class="form-control form-control-sm" required placeholder="Ex: Congés annuels d'été">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-sm btn-primary">Soumettre la demande</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: VALIDATION DECISION -->
+  <div class="modal fade" id="modalValidation" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form onsubmit="confirmValidationDecision(event)">
+          <div class="modal-header">
+            <h6 class="modal-title fw-bold" id="modalValTitle">Arbitrage de la Demande</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body fs-7">
+            <input type="hidden" id="valFormDemandeId">
+            <input type="hidden" id="valFormAction">
+
+            <div class="p-3 bg-light rounded border mb-3" id="valFormSummary"></div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold">Signataire / Qualité du validateur *</label>
+              <input type="text" id="valFormValidator" class="form-control form-control-sm" value="Direction RH" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Observation ou motif</label>
+              <textarea id="valFormObservation" class="form-control form-control-sm" rows="2" placeholder="Commentaire facultatif..."></textarea>
+            </div>
+
+            <div id="valFormBalanceCheck" class="alert py-2 px-3 fs-8 mb-0"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-sm" id="valFormSubmitBtn">Confirmer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Application Logic (Vanilla JS) -->
+  <script>
+    // --- DATABASE STORAGE ENGINE (Persistent LocalStorage with Initial Fallback) ---
+    const DB_KEY = 'RH_CONGES_DATABASE_BOOTSTRAP_V1';
+
+    const INITIAL_EMPLOYEES = [
+      { id: 'emp-001', Matricule: 'M0121', Nom: 'Marc Durand', Direction: 'Ressources Humaines', Sexe: 'Masculin', Categorie: 'Cadre', AnneeEmbauche: 2017, Poste: 'Directeur des Ressources Humaines' },
+      { id: 'emp-002', Matricule: 'M0084', Nom: 'Sophie Martin', Direction: 'Ressources Humaines', Sexe: 'Féminin', Categorie: 'Employé', AnneeEmbauche: 2020, Poste: 'Chargée de Paie' },
+      { id: 'emp-003', Matricule: 'M0045', Nom: 'Jean-Pierre Dubois', Direction: 'Finance & Comptabilité', Sexe: 'Masculin', Categorie: 'Cadre', AnneeEmbauche: 2015, Poste: 'Chef Comptable' },
+      { id: 'emp-004', Matricule: 'M0092', Nom: 'Amina Benali', Direction: 'Finance & Comptabilité', Sexe: 'Féminin', Categorie: 'Maîtrise', AnneeEmbauche: 2019, Poste: 'Contrôleur de Gestion' },
+      { id: 'emp-005', Matricule: 'M0103', Nom: 'Alexandre Lefevre', Direction: 'Systèmes d\'Information', Sexe: 'Masculin', Categorie: 'Cadre', AnneeEmbauche: 2018, Poste: 'Lead Architecte Cloud' },
+      { id: 'emp-006', Matricule: 'M0115', Nom: 'Claire Moreau', Direction: 'Systèmes d\'Information', Sexe: 'Féminin', Categorie: 'Maîtrise', AnneeEmbauche: 2021, Poste: 'Administratrice Réseaux' },
+      { id: 'emp-007', Matricule: 'M0130', Nom: 'Thomas Bernard', Direction: 'Systèmes d\'Information', Sexe: 'Masculin', Categorie: 'Employé', AnneeEmbauche: 2022, Poste: 'Technicien Support' },
+      { id: 'emp-008', Matricule: 'M0067', Nom: 'Fatou Diallo', Direction: 'Commercial & Marketing', Sexe: 'Féminin', Categorie: 'Cadre', AnneeEmbauche: 2016, Poste: 'Directrice Commerciale' },
+      { id: 'emp-009', Matricule: 'M0078', Nom: 'Lucas Lambert', Direction: 'Commercial & Marketing', Sexe: 'Masculin', Categorie: 'Maîtrise', AnneeEmbauche: 2019, Poste: 'Responsable Comptes Clés' },
+      { id: 'emp-010', Matricule: 'M0144', Nom: 'Camille Leroy', Direction: 'Commercial & Marketing', Sexe: 'Féminin', Categorie: 'Employé', AnneeEmbauche: 2023, Poste: 'Assistante ADV' },
+      { id: 'emp-011', Matricule: 'M0052', Nom: 'David Garnier', Direction: 'Opérations & Logistique', Sexe: 'Masculin', Categorie: 'Cadre', AnneeEmbauche: 2015, Poste: 'Directeur Logistique' },
+      { id: 'emp-012', Matricule: 'M0089', Nom: 'Nathalie Roux', Direction: 'Opérations & Logistique', Sexe: 'Féminin', Categorie: 'Maîtrise', AnneeEmbauche: 2020, Poste: 'Superviseur d\'Entrepôt' },
+      { id: 'emp-013', Matricule: 'M0156', Nom: 'Karim Zeroual', Direction: 'Opérations & Logistique', Sexe: 'Masculin', Categorie: 'Ouvrier', AnneeEmbauche: 2022, Poste: 'Préparateur de Commandes' },
+      { id: 'emp-014', Matricule: 'M0162', Nom: 'Philippe Meunier', Direction: 'Opérations & Logistique', Sexe: 'Masculin', Categorie: 'Ouvrier', AnneeEmbauche: 2023, Poste: 'Agent de Quai' },
+      { id: 'emp-015', Matricule: 'M0031', Nom: 'Isabelle Mercier', Direction: 'Direction Générale', Sexe: 'Féminin', Categorie: 'Cadre', AnneeEmbauche: 2014, Poste: 'Secrétaire Générale' },
+    ];
+
+    const INITIAL_LEAVE_TYPES = [
+      { id: 'tc-ca', CodeType: 'CA', Libelle: 'Congé annuel', SoldeMaximum: 30, Description: 'Congé annuel payé légal' },
+      { id: 'tc-cm', CodeType: 'CM', Libelle: 'Congé maladie', SoldeMaximum: 10, Description: 'Arrêt justifié par certificat médical' },
+      { id: 'tc-ce', CodeType: 'CE', Libelle: 'Congé exceptionnel', SoldeMaximum: 5, Description: 'Mariage, naissance, déménagement' },
+      { id: 'tc-cf', CodeType: 'CF', Libelle: 'Congé familial', SoldeMaximum: 3, Description: 'Événements familiaux urgents' },
+      { id: 'tc-cs', CodeType: 'CS', Libelle: 'Congé sans solde', SoldeMaximum: 15, Description: 'Suspension non rémunérée' },
+    ];
+
+    const INITIAL_DEMANDES = [
+      { IdDemande: 'DEM-2026-001', Matricule: 'M0121', CodeType: 'CA', DateDebut: '2026-01-12', DateFin: '2026-01-30', NbJours: 15, Annee: 2026, Motif: 'Congés d\'hiver', StatutDemande: 'Accordé', ValidePar: 'Direction Générale' },
+      { IdDemande: 'DEM-2026-002', Matricule: 'M0121', CodeType: 'CM', DateDebut: '2026-02-09', DateFin: '2026-02-11', NbJours: 3, Annee: 2026, Motif: 'Grippe saisonnière', StatutDemande: 'Accordé', ValidePar: 'Service Médical' },
+      { IdDemande: 'DEM-2026-003', Matricule: 'M0121', CodeType: 'CA', DateDebut: '2026-07-06', DateFin: '2026-07-17', NbJours: 10, Annee: 2026, Motif: 'Vacances d\'été', StatutDemande: 'Accordé', ValidePar: 'Direction Générale' },
+      { IdDemande: 'DEM-2026-004', Matricule: 'M0121', CodeType: 'CE', DateDebut: '2026-09-14', DateFin: '2026-09-18', NbJours: 5, Annee: 2026, Motif: 'Mariage civil', StatutDemande: 'En attente' },
+      { IdDemande: 'DEM-2026-005', Matricule: 'M0084', CodeType: 'CA', DateDebut: '2026-02-16', DateFin: '2026-03-06', NbJours: 15, Annee: 2026, Motif: 'Repos annuel', StatutDemande: 'Accordé', ValidePar: 'Marc Durand' },
+      { IdDemande: 'DEM-2026-006', Matricule: 'M0084', CodeType: 'CM', DateDebut: '2026-03-23', DateFin: '2026-03-31', NbJours: 7, Annee: 2026, Motif: 'Soins dentaires', StatutDemande: 'Accordé', ValidePar: 'Marc Durand' },
+      { IdDemande: 'DEM-2026-007', Matricule: 'M0103', CodeType: 'CA', DateDebut: '2026-04-13', DateFin: '2026-05-08', NbJours: 18, Annee: 2026, Motif: 'Congés de printemps', StatutDemande: 'Accordé', ValidePar: 'Direction RH' },
+      { IdDemande: 'DEM-2026-008', Matricule: 'M0103', CodeType: 'CA', DateDebut: '2026-08-03', DateFin: '2026-08-21', NbJours: 15, Annee: 2026, Motif: 'Congés août', StatutDemande: 'Refusé', ValidePar: 'Direction RH' },
+      { IdDemande: 'DEM-2026-009', Matricule: 'M0156', CodeType: 'CA', DateDebut: '2026-01-05', DateFin: '2026-01-23', NbJours: 15, Annee: 2026, Motif: 'Vacances hiver', StatutDemande: 'Accordé', ValidePar: 'David Garnier' },
+      { IdDemande: 'DEM-2026-010', Matricule: 'M0156', CodeType: 'CA', DateDebut: '2026-07-13', DateFin: '2026-07-31', NbJours: 15, Annee: 2026, Motif: 'Vacances été', StatutDemande: 'Accordé', ValidePar: 'David Garnier' },
+      { IdDemande: 'DEM-2026-011', Matricule: 'M0052', CodeType: 'CA', DateDebut: '2026-06-15', DateFin: '2026-07-03', NbJours: 15, Annee: 2026, Motif: 'Congés principaux', StatutDemande: 'Accordé', ValidePar: 'Direction RH' },
+      { IdDemande: 'DEM-2026-012', Matricule: 'M0130', CodeType: 'CA', DateDebut: '2026-09-07', DateFin: '2026-09-18', NbJours: 10, Annee: 2026, Motif: 'Voyage personnel', StatutDemande: 'En attente' },
+    ];
+
+    let db = {
+      employees: [],
+      leaveTypes: [],
+      demandes: [],
+      settings: {
+        NomOrganisation: 'GROUPE RH & CONGÉS SOLUTIONS',
+        ModeCalculJours: 'ouvrables',
+        JoursFeries: ['2026-01-01', '2026-04-06', '2026-05-01', '2026-05-08', '2026-05-14', '2026-05-25', '2026-07-14', '2026-08-15', '2026-11-01', '2026-11-11', '2026-12-25'],
+        SeuilAlerteSoldeFaible: 20
+      }
+    };
+
+    function loadDatabase() {
+      const stored = localStorage.getItem(DB_KEY);
+      if (stored) {
+        try {
+          db = JSON.parse(stored);
+        } catch (e) {
+          resetDatabase();
+        }
+      } else {
+        resetDatabase();
+      }
+    }
+
+    function saveDatabase() {
+      localStorage.setItem(DB_KEY, JSON.stringify(db));
+    }
+
+    function resetDatabase() {
+      db.employees = JSON.parse(JSON.stringify(INITIAL_EMPLOYEES));
+      db.leaveTypes = JSON.parse(JSON.stringify(INITIAL_LEAVE_TYPES));
+      db.demandes = JSON.parse(JSON.stringify(INITIAL_DEMANDES));
+      saveDatabase();
+    }
+
+    function resetDemoDataPrompt() {
+      if (confirm('Voulez-vous restaurer le jeu de données d\'essai initial ?')) {
+        resetDatabase();
+        refreshAllViews();
+        showAlert('Données de démonstration restaurées avec succès !', 'success');
+      }
+    }
+
+    // --- STATE ---
+    let currentRole = 'ADMINISTRATEUR';
+    let currentYear = 2026;
+    let chartHisto = null;
+    let chartPie = null;
+    let chartDir = null;
+
+    function showAlert(msg, type = 'info') {
+      const el = document.getElementById('globalAlert');
+      el.className = `alert alert-${type} alert-dismissible fade show`;
+      document.getElementById('globalAlertText').textContent = msg;
+      el.classList.remove('d-none');
+      setTimeout(() => el.classList.add('d-none'), 5000);
+    }
+    function hideAlert() {
+      document.getElementById('globalAlert').classList.add('d-none');
+    }
+
+    function switchRole(role) {
+      currentRole = role;
+      document.getElementById('navRoleLabel').textContent = role === 'ADMINISTRATEUR' ? 'Admin' : role === 'RESPONSABLE_RH' ? 'RH' : 'Employé';
+      document.getElementById('currentUserDisplay').textContent = role === 'ADMINISTRATEUR' ? 'Administrateur' : role === 'RESPONSABLE_RH' ? 'Marc Durand (RH)' : 'Collaborateur';
+      showAlert(`Rôle basculé sur [${role}]`, 'primary');
+    }
+
+    function changeActiveYear(yr) {
+      currentYear = parseInt(yr);
+      refreshAllViews();
+    }
+
+    function showView(viewId, clickedLink) {
+      document.querySelectorAll('.content-view').forEach(v => v.classList.add('d-none'));
+      const target = document.getElementById(`view-${viewId}`);
+      if (target) target.classList.remove('d-none');
+
+      document.querySelectorAll('#sidebarMenu .nav-link').forEach(l => l.classList.remove('active'));
+      if (clickedLink) clickedLink.classList.add('active');
+
+      if (viewId === 'dashboard') renderDashboard();
+      if (viewId === 'employees') renderEmployeesTable();
+      if (viewId === 'leave-types') renderLeaveTypes();
+      if (viewId === 'requests') renderRequestsTable();
+      if (viewId === 'validation') renderValidationCards();
+      if (viewId === 'balances') renderBalancesTable();
+      if (viewId === 'individual-recap') renderIndividualRecap();
+      if (viewId === 'absenteeism') renderAbsenteeismTable();
+      if (viewId === 'search-direction') renderDirectionSearch();
+      if (viewId === 'settings') loadSettingsForm();
+    }
+
+    // --- LEAVE DAYS CALCULATION ENGINE ---
+    function calculateDays(dateDebutStr, dateFinStr) {
+      if (!dateDebutStr || !dateFinStr) return 0;
+      const start = new Date(dateDebutStr);
+      const end = new Date(dateFinStr);
+      if (start > end) return 0;
+
+      let count = 0;
+      let curr = new Date(start);
+      const holidaySet = new Set(db.settings.JoursFeries || []);
+
+      while (curr <= end) {
+        const day = curr.getDay(); // 0: Sun, 6: Sat
+        const iso = curr.toISOString().split('T')[0];
+        const isHoliday = holidaySet.has(iso);
+
+        if (db.settings.ModeCalculJours === 'calendaires') {
+          count++;
+        } else if (db.settings.ModeCalculJours === 'ouvrables') {
+          if (day >= 1 && day <= 5 && !isHoliday) count++;
+        } else if (db.settings.ModeCalculJours === 'ouvres') {
+          if (day >= 1 && day <= 6 && !isHoliday) count++;
+        }
+        curr.setDate(curr.getDate() + 1);
+      }
+      return count;
+    }
+
+    function getSoldeDetails(matricule, codeType, annee) {
+      const type = db.leaveTypes.find(t => t.CodeType === codeType) || { SoldeMaximum: 30, Libelle: codeType };
+      const reqs = db.demandes.filter(d => d.Matricule === matricule && d.CodeType === codeType && d.Annee === annee);
+      const accordes = reqs.filter(d => d.StatutDemande === 'Accordé').reduce((sum, d) => sum + d.NbJours, 0);
+      const attente = reqs.filter(d => d.StatutDemande === 'En attente').reduce((sum, d) => sum + d.NbJours, 0);
+      const restant = type.SoldeMaximum - accordes;
+
+      let observation = 'ACCORDÉ';
+      if (restant < 0) observation = 'REFUSÉ';
+      else if (restant === 0) observation = 'ALERTE';
+      else if (type.SoldeMaximum > 0 && (restant / type.SoldeMaximum) * 100 <= db.settings.SeuilAlerteSoldeFaible) {
+        observation = 'SOLDE FAIBLE';
+      }
+
+      return {
+        CodeType: codeType,
+        Libelle: type.Libelle,
+        SoldeMaximum: type.SoldeMaximum,
+        JoursAccordes: accordes,
+        JoursEnAttente: attente,
+        SoldeRestant: restant,
+        Observation: observation
+      };
+    }
+
+    // --- RENDER DASHBOARD ---
+    function renderDashboard() {
+      const reqsYear = db.demandes.filter(d => d.Annee === currentYear);
+      const accordes = reqsYear.filter(d => d.StatutDemande === 'Accordé');
+      const attente = reqsYear.filter(d => d.StatutDemande === 'En attente');
+      const refuse = reqsYear.filter(d => d.StatutDemande === 'Refusé');
+      const totalJours = accordes.reduce((sum, d) => sum + d.NbJours, 0);
+
+      document.getElementById('kpiTotalEmp').textContent = db.employees.length;
+      document.getElementById('kpiTotalDem').textContent = reqsYear.length;
+      document.getElementById('kpiAccorde').textContent = accordes.length;
+      document.getElementById('kpiAttente').textContent = attente.length;
+      document.getElementById('kpiRefuse').textContent = refuse.length;
+      document.getElementById('kpiJoursAbs').textContent = totalJours + ' j';
+      document.getElementById('pendingCountBadge').textContent = attente.length;
+
+      // Histogram chart
+      if (chartHisto) chartHisto.destroy();
+      const ctxH = document.getElementById('chartStatusHisto').getContext('2d');
+      chartHisto = new Chart(ctxH, {
+        type: 'bar',
+        data: {
+          labels: ['Accordées', 'En attente', 'Refusées'],
+          datasets: [{
+            label: 'Nombre de demandes',
+            data: [accordes.length, attente.length, refuse.length],
+            backgroundColor: ['#198754', '#ffc107', '#dc3545']
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // Pie chart (% formula)
+      if (chartPie) chartPie.destroy();
+      const ctxP = document.getElementById('chartStatusPie').getContext('2d');
+      const total = reqsYear.length || 1;
+      const pctAcc = ((accordes.length / total) * 100).toFixed(1);
+      const pctAtt = ((attente.length / total) * 100).toFixed(1);
+      const pctRef = ((refuse.length / total) * 100).toFixed(1);
+
+      chartPie = new Chart(ctxP, {
+        type: 'doughnut',
+        data: {
+          labels: [`Accordées (${pctAcc}%)`, `En attente (${pctAtt}%)`, `Refusées (${pctRef}%)`],
+          datasets: [{
+            data: [accordes.length, attente.length, refuse.length],
+            backgroundColor: ['#198754', '#ffc107', '#dc3545']
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // Direction Bar chart
+      const dirs = ['Ressources Humaines', 'Finance & Comptabilité', 'Systèmes d\'Information', 'Commercial & Marketing', 'Opérations & Logistique', 'Direction Générale'];
+      const dirCounts = dirs.map(dir => {
+        return accordes.filter(d => {
+          const emp = db.employees.find(e => e.Matricule === d.Matricule);
+          return emp && emp.Direction === dir;
+        }).reduce((sum, d) => sum + d.NbJours, 0);
+      });
+
+      if (chartDir) chartDir.destroy();
+      const ctxD = document.getElementById('chartDirectionBar').getContext('2d');
+      chartDir = new Chart(ctxD, {
+        type: 'bar',
+        data: {
+          labels: ['RH', 'Finance', 'SI', 'Commercial', 'Opérations', 'DG'],
+          datasets: [{
+            label: 'Jours accordés',
+            data: dirCounts,
+            backgroundColor: '#0d6efd'
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // Category breakdown table
+      const cats = ['Cadre', 'Maîtrise', 'Employé', 'Ouvrier'];
+      const tbodyCat = document.getElementById('tbodyCategories');
+      tbodyCat.innerHTML = cats.map(cat => {
+        const catDays = accordes.filter(d => {
+          const emp = db.employees.find(e => e.Matricule === d.Matricule);
+          return emp && emp.Categorie === cat;
+        }).reduce((sum, d) => sum + d.NbJours, 0);
+        const pct = totalJours > 0 ? Math.round((catDays / totalJours) * 100) : 0;
+        return `
+          <tr>
+            <td class="fw-bold">${cat}</td>
+            <td class="text-center font-monospace">${catDays} j</td>
+            <td>
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-primary" style="width: ${pct}%"></div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // --- RENDER EMPLOYEES ---
+    function renderEmployeesTable() {
+      const q = document.getElementById('empSearchInput')?.value.toLowerCase() || '';
+      const dir = document.getElementById('empDirFilter')?.value || 'Toutes';
+      const cat = document.getElementById('empCatFilter')?.value || 'Toutes';
+      const sex = document.getElementById('empSexeFilter')?.value || 'Tous';
+
+      const filtered = db.employees.filter(e => {
+        const matchesQ = e.Matricule.toLowerCase().includes(q) || e.Nom.toLowerCase().includes(q);
+        const matchesDir = dir === 'Toutes' || e.Direction === dir;
+        const matchesCat = cat === 'Toutes' || e.Categorie === cat;
+        const matchesSex = sex === 'Tous' || e.Sexe === sex;
+        return matchesQ && matchesDir && matchesCat && matchesSex;
+      });
+
+      const tbody = document.getElementById('tbodyEmployees');
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Aucun employé trouvé.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(e => `
+        <tr>
+          <td class="font-monospace fw-bold">${e.Matricule}</td>
+          <td class="fw-semibold">${e.Nom}</td>
+          <td>${e.Direction}</td>
+          <td>${e.Categorie}</td>
+          <td>${e.Sexe}</td>
+          <td class="text-center font-monospace">${e.AnneeEmbauche}</td>
+          <td class="text-muted">${e.Poste || '—'}</td>
+          <td class="text-end">
+            <button class="btn btn-outline-primary btn-sm py-0 px-2" onclick="openRecapForMatricule('${e.Matricule}')" title="Fiche individuelle">
+              <i class="bi bi-file-earmark-person"></i>
+            </button>
+            <button class="btn btn-outline-secondary btn-sm py-0 px-2 ms-1" onclick="openEditEmployee('${e.id}')" title="Modifier">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm py-0 px-2 ms-1" onclick="deleteEmployee('${e.id}')" title="Supprimer">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function openEmployeeModal() {
+      document.getElementById('empFormId').value = '';
+      document.getElementById('empFormMatricule').value = '';
+      document.getElementById('empFormMatricule').disabled = false;
+      document.getElementById('empFormNom').value = '';
+      document.getElementById('empFormPoste').value = '';
+      document.getElementById('modalEmpTitle').textContent = 'Ajouter un employé';
+      new bootstrap.Modal(document.getElementById('modalEmployee')).show();
+    }
+
+    function openEditEmployee(id) {
+      const emp = db.employees.find(e => e.id === id);
+      if (!emp) return;
+      document.getElementById('empFormId').value = emp.id;
+      document.getElementById('empFormMatricule').value = emp.Matricule;
+      document.getElementById('empFormMatricule').disabled = true; // Protect unique matricule
+      document.getElementById('empFormNom').value = emp.Nom;
+      document.getElementById('empFormDirection').value = emp.Direction;
+      document.getElementById('empFormSexe').value = emp.Sexe;
+      document.getElementById('empFormCategorie').value = emp.Categorie;
+      document.getElementById('empFormAnnee').value = emp.AnneeEmbauche;
+      document.getElementById('empFormPoste').value = emp.Poste || '';
+      document.getElementById('modalEmpTitle').textContent = 'Modifier l\'employé';
+      new bootstrap.Modal(document.getElementById('modalEmployee')).show();
+    }
+
+    function saveEmployee(e) {
+      e.preventDefault();
+      const id = document.getElementById('empFormId').value;
+      const mat = document.getElementById('empFormMatricule').value.trim().toUpperCase();
+      const nom = document.getElementById('empFormNom').value.trim();
+      const dir = document.getElementById('empFormDirection').value;
+      const sexe = document.getElementById('empFormSexe').value;
+      const cat = document.getElementById('empFormCategorie').value;
+      const annee = parseInt(document.getElementById('empFormAnnee').value);
+      const poste = document.getElementById('empFormPoste').value.trim();
+
+      if (!id) {
+        // Unique check
+        if (db.employees.some(emp => emp.Matricule === mat)) {
+          alert('Employé déjà enregistré');
+          return;
+        }
+        db.employees.push({ id: 'emp-' + Date.now(), Matricule: mat, Nom: nom, Direction: dir, Sexe: sexe, Categorie: cat, AnneeEmbauche: annee, Poste: poste });
+        showAlert(`Employé ${nom} (${mat}) enregistré avec succès`, 'success');
+      } else {
+        const index = db.employees.findIndex(emp => emp.id === id);
+        if (index === -1) { alert('Employé non trouvé'); return; }
+        db.employees[index] = { ...db.employees[index], Nom: nom, Direction: dir, Sexe: sexe, Categorie: cat, AnneeEmbauche: annee, Poste: poste };
+        showAlert(`Informations de l'employé ${nom} mises à jour`, 'success');
+      }
+
+      saveDatabase();
+      bootstrap.Modal.getInstance(document.getElementById('modalEmployee')).hide();
+      renderEmployeesTable();
+    }
+
+    function deleteEmployee(id) {
+      const emp = db.employees.find(e => e.id === id);
+      if (!emp) return;
+
+      // Integrity constraint check
+      const hasDemands = db.demandes.some(d => d.Matricule === emp.Matricule);
+      if (hasDemands) {
+        alert(`Suppression bloquée : L'employé ${emp.Nom} (${emp.Matricule}) possède un historique de demandes de congé.`);
+        return;
+      }
+
+      if (confirm(`Confirmer la suppression définitive de l'employé ${emp.Nom} (${emp.Matricule}) ?`)) {
+        db.employees = db.employees.filter(e => e.id !== id);
+        saveDatabase();
+        renderEmployeesTable();
+        showAlert('Employé supprimé avec succès.', 'success');
+      }
+    }
+
+    // --- RENDER LEAVE TYPES ---
+    function renderLeaveTypes() {
+      const container = document.getElementById('cardsLeaveTypes');
+      container.innerHTML = db.leaveTypes.map(t => `
+        <div class="col-md-6 col-lg-4">
+          <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+              <span class="badge bg-primary fs-7">${t.CodeType}</span>
+              <h4 class="fw-bold mb-0 text-primary font-monospace">${t.SoldeMaximum} j</h4>
+            </div>
+            <h6 class="fw-bold mt-2 mb-1">${t.Libelle}</h6>
+            <p class="text-muted fs-8 mb-3">${t.Description || 'Aucune description'}</p>
+            <div class="d-flex justify-content-end gap-1 mt-auto pt-2 border-top">
+              <button class="btn btn-outline-secondary btn-sm" onclick="editLeaveType('${t.id}')"><i class="bi bi-pencil"></i> Modifier</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function editLeaveType(id) {
+      const t = db.leaveTypes.find(x => x.id === id);
+      if (!t) return;
+      const newMax = prompt(`Modifier le solde maximum (jours) pour [${t.Libelle}] :`, t.SoldeMaximum);
+      if (newMax !== null && !isNaN(newMax)) {
+        t.SoldeMaximum = parseInt(newMax);
+        saveDatabase();
+        renderLeaveTypes();
+        showAlert(`Solde maximum de ${t.Libelle} mis à jour (${newMax} j)`, 'success');
+      }
+    }
+
+    // --- RENDER REQUESTS ---
+    function renderRequestsTable() {
+      const q = document.getElementById('reqSearchInput')?.value.toLowerCase() || '';
+      const dir = document.getElementById('reqDirFilter')?.value || 'Toutes';
+      const type = document.getElementById('reqTypeFilter')?.value || 'Tous';
+      const st = document.getElementById('reqStatusFilter')?.value || 'Tous';
+      const yr = parseInt(document.getElementById('reqYearFilter')?.value || currentYear);
+
+      // Populate leave type filter options if empty
+      const selType = document.getElementById('reqTypeFilter');
+      if (selType && selType.options.length <= 1) {
+        db.leaveTypes.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.CodeType;
+          opt.textContent = `${t.Libelle} (${t.CodeType})`;
+          selType.appendChild(opt);
+        });
+      }
+
+      const filtered = db.demandes.filter(d => {
+        const emp = db.employees.find(e => e.Matricule === d.Matricule) || { Nom: '', Direction: '' };
+        const matchesQ = d.Matricule.toLowerCase().includes(q) || emp.Nom.toLowerCase().includes(q) || d.Motif.toLowerCase().includes(q);
+        const matchesDir = dir === 'Toutes' || emp.Direction === dir;
+        const matchesType = type === 'Tous' || d.CodeType === type;
+        const matchesSt = st === 'Tous' || d.StatutDemande === st;
+        const matchesYr = d.Annee === yr;
+        return matchesQ && matchesDir && matchesType && matchesSt && matchesYr;
+      });
+
+      const tbody = document.getElementById('tbodyRequests');
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">Aucune demande trouvée.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(d => {
+        const emp = db.employees.find(e => e.Matricule === d.Matricule) || { Nom: 'Inconnu', Direction: '—' };
+        const lt = db.leaveTypes.find(t => t.CodeType === d.CodeType) || { Libelle: d.CodeType };
+        let badgeClass = d.StatutDemande === 'Accordé' ? 'badge-status-accorde' : d.StatutDemande === 'En attente' ? 'badge-status-attente' : 'badge-status-refuse';
+
+        return `
+          <tr>
+            <td class="font-monospace fw-bold fs-8">${d.IdDemande}</td>
+            <td><strong>${emp.Nom}</strong> <small class="text-muted font-monospace d-block">${d.Matricule}</small></td>
+            <td>${emp.Direction}</td>
+            <td>${lt.Libelle} <small class="text-muted font-monospace">(${d.CodeType})</small></td>
+            <td class="font-monospace fs-8">${d.DateDebut} → ${d.DateFin}</td>
+            <td class="text-center font-monospace fw-bold">${d.NbJours} j</td>
+            <td><span class="badge ${badgeClass} fs-8 px-2 py-1">${d.StatutDemande}</span></td>
+            <td>
+              <span class="d-block text-truncate" style="max-width: 180px;">${d.Motif}</span>
+              ${d.ValidePar ? `<small class="text-muted">Par: ${d.ValidePar}</small>` : ''}
+            </td>
+            <td class="text-end">
+              ${d.StatutDemande === 'En attente' ? `
+                <button class="btn btn-outline-success btn-sm py-0 px-2" onclick="openValidationModal('${d.IdDemande}', 'ACCORDER')"><i class="bi bi-check-lg"></i></button>
+                <button class="btn btn-outline-danger btn-sm py-0 px-2 ms-1" onclick="openValidationModal('${d.IdDemande}', 'REFUSER')"><i class="bi bi-x-lg"></i></button>
+              ` : ''}
+              <button class="btn btn-outline-secondary btn-sm py-0 px-2 ms-1" onclick="deleteRequest('${d.IdDemande}')"><i class="bi bi-trash"></i></button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openNewRequestModal() {
+      // Populate employee select
+      const selEmp = document.getElementById('reqFormMatricule');
+      selEmp.innerHTML = db.employees.map(e => `<option value="${e.Matricule}">${e.Matricule} — ${e.Nom} (${e.Direction})</option>`).join('');
+
+      // Populate types select
+      const selType = document.getElementById('reqFormCodeType');
+      selType.innerHTML = db.leaveTypes.map(t => `<option value="${t.CodeType}">${t.Libelle} (${t.CodeType}) — Max: ${t.SoldeMaximum}j</option>`).join('');
+
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('reqFormDateDebut').value = today;
+      document.getElementById('reqFormDateFin').value = today;
+      document.getElementById('reqFormAnnee').value = currentYear;
+      document.getElementById('reqFormMotif').value = '';
+
+      updateFormEmployeeInfo();
+      recalculateFormDays();
+      new bootstrap.Modal(document.getElementById('modalRequest')).show();
+    }
+
+    function updateFormEmployeeInfo() {
+      const mat = document.getElementById('reqFormMatricule').value;
+      const emp = db.employees.find(e => e.Matricule === mat);
+      const el = document.getElementById('reqFormEmpInfo');
+      if (emp) {
+        el.innerHTML = `<strong>${emp.Nom}</strong> · Direction: <strong>${emp.Direction}</strong> · Catégorie: <strong>${emp.Categorie}</strong>`;
+      }
+    }
+
+    function recalculateFormDays() {
+      const d1 = document.getElementById('reqFormDateDebut').value;
+      const d2 = document.getElementById('reqFormDateFin').value;
+      const days = calculateDays(d1, d2);
+      document.getElementById('reqFormCalculatedDays').textContent = days + ' j';
+
+      // Check balance simulation
+      const mat = document.getElementById('reqFormMatricule').value;
+      const code = document.getElementById('reqFormCodeType').value;
+      const annee = parseInt(document.getElementById('reqFormAnnee').value);
+      const solde = getSoldeDetails(mat, code, annee);
+
+      const warnEl = document.getElementById('reqFormBalanceWarning');
+      if (days > solde.SoldeRestant) {
+        warnEl.textContent = `Avertissement : Cette demande (${days} j) dépasse le solde restant disponible (${solde.SoldeRestant} j).`;
+        warnEl.classList.remove('d-none');
+      } else if (solde.SoldeRestant - days === 0) {
+        warnEl.textContent = `Information : Cette demande va entièrement épuiser le solde disponible (${solde.Libelle}).`;
+        warnEl.classList.remove('d-none');
+      } else {
+        warnEl.classList.add('d-none');
+      }
+    }
+
+    function saveRequest(e) {
+      e.preventDefault();
+      const mat = document.getElementById('reqFormMatricule').value;
+      const code = document.getElementById('reqFormCodeType').value;
+      const d1 = document.getElementById('reqFormDateDebut').value;
+      const d2 = document.getElementById('reqFormDateFin').value;
+      const annee = parseInt(document.getElementById('reqFormAnnee').value);
+      const motif = document.getElementById('reqFormMotif').value.trim();
+      const nbJours = calculateDays(d1, d2);
+
+      if (nbJours <= 0) {
+        alert('La période choisie ne comporte aucun jour valide.');
+        return;
+      }
+
+      const id = 'DEM-' + annee + '-' + String(db.demandes.length + 1).padStart(3, '0');
+      db.demandes.unshift({
+        IdDemande: id,
+        Matricule: mat,
+        CodeType: code,
+        DateDebut: d1,
+        DateFin: d2,
+        NbJours: nbJours,
+        Annee: annee,
+        Motif: motif,
+        StatutDemande: 'En attente'
+      });
+
+      saveDatabase();
+      bootstrap.Modal.getInstance(document.getElementById('modalRequest')).hide();
+      showAlert('Demande enregistrée et en attente de validation RH !', 'success');
+      refreshAllViews();
+    }
+
+    function deleteRequest(id) {
+      if (confirm(`Confirmer la suppression de la demande ${id} ? Les soldes seront recalculés.`)) {
+        db.demandes = db.demandes.filter(d => d.IdDemande !== id);
+        saveDatabase();
+        showAlert('Demande supprimée avec succès.', 'info');
+        refreshAllViews();
+      }
+    }
+
+    // --- VALIDATION MODULE WITH STRICT RULES ---
+    function renderValidationCards() {
+      const pending = db.demandes.filter(d => d.StatutDemande === 'En attente');
+      document.getElementById('validationCountHeader').textContent = `${pending.length} en attente`;
+      const container = document.getElementById('validationCardsContainer');
+
+      if (pending.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center py-5 text-muted"><i class="bi bi-check-circle fs-1 text-success d-block mb-2"></i>Toutes les demandes de congés ont été traitées !</div>';
+        return;
+      }
+
+      container.innerHTML = pending.map(d => {
+        const emp = db.employees.find(e => e.Matricule === d.Matricule) || { Nom: 'Inconnu', Direction: '—' };
+        const lt = db.leaveTypes.find(t => t.CodeType === d.CodeType) || { Libelle: d.CodeType };
+        const solde = getSoldeDetails(d.Matricule, d.CodeType, d.Annee);
+        const isInsufficient = d.NbJours > solde.SoldeRestant;
+
+        return `
+          <div class="col-md-6 col-lg-4">
+            <div class="card card-kpi p-3 h-100 ${isInsufficient ? 'border-danger' : ''}">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h6 class="fw-bold mb-0">${emp.Nom}</h6>
+                  <small class="text-muted font-monospace">${d.Matricule} · ${emp.Direction}</small>
+                </div>
+                <span class="badge bg-warning text-dark fs-8">En attente</span>
+              </div>
+              <div class="bg-light p-2 rounded fs-8 mb-2">
+                <div>Nature : <strong>${lt.Libelle} (${d.CodeType})</strong></div>
+                <div>Période : <span class="font-monospace">${d.DateDebut} → ${d.DateFin}</span></div>
+                <div>Durée : <strong class="text-primary font-monospace">${d.NbJours} jours</strong></div>
+                <div class="border-top pt-1 mt-1 text-muted">
+                  Solde actuel dispo : <strong class="font-monospace">${solde.SoldeRestant} j</strong>
+                  ${isInsufficient ? '<span class="text-danger fw-bold d-block">Solde insuffisant !</span>' : ''}
+                </div>
+              </div>
+              <p class="text-muted fs-8 fst-italic mb-3">"${d.Motif}"</p>
+              <div class="d-flex gap-2 mt-auto">
+                <button class="btn btn-danger btn-sm flex-fill" onclick="openValidationModal('${d.IdDemande}', 'REFUSER')"><i class="bi bi-x-circle"></i> Refuser</button>
+                <button class="btn btn-success btn-sm flex-fill" onclick="openValidationModal('${d.IdDemande}', 'ACCORDER')"><i class="bi bi-check-circle"></i> Valider</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openValidationModal(idDemande, action) {
+      const d = db.demandes.find(x => x.IdDemande === idDemande);
+      if (!d) return;
+      const emp = db.employees.find(e => e.Matricule === d.Matricule) || { Nom: d.Matricule };
+      const solde = getSoldeDetails(d.Matricule, d.CodeType, d.Annee);
+      const isInsufficient = d.NbJours > solde.SoldeRestant;
+      const soldeApres = solde.SoldeRestant - d.NbJours;
+
+      document.getElementById('valFormDemandeId').value = idDemande;
+      document.getElementById('valFormAction').value = action;
+      document.getElementById('valFormObservation').value = '';
+      document.getElementById('modalValTitle').textContent = action === 'ACCORDER' ? 'Valider la demande' : 'Refuser la demande';
+
+      document.getElementById('valFormSummary').innerHTML = `
+        <strong>${emp.Nom} (${d.Matricule})</strong> — Réf: ${d.IdDemande}<br>
+        Congé : <strong>${d.CodeType}</strong> | Durée demandée : <strong>${d.NbJours} j</strong><br>
+        Solde disponible actuel : <strong>${solde.SoldeRestant} j</strong>
+      `;
+
+      const checkEl = document.getElementById('valFormBalanceCheck');
+      const submitBtn = document.getElementById('valFormSubmitBtn');
+
+      if (action === 'ACCORDER') {
+        submitBtn.className = 'btn btn-sm btn-success';
+        submitBtn.textContent = 'Approuver définitivement';
+
+        if (isInsufficient) {
+          checkEl.className = 'alert alert-danger py-2 px-3 fs-8 mb-0';
+          checkEl.innerHTML = '<strong>Bloqué : Solde de congé insuffisant !</strong> Approbation impossible.';
+          submitBtn.disabled = true;
+        } else if (soldeApres === 0) {
+          checkEl.className = 'alert alert-warning py-2 px-3 fs-8 mb-0';
+          checkEl.innerHTML = '<strong>ALERTE : Le solde de congé est épuisé</strong> après cette validation.';
+          submitBtn.disabled = false;
+        } else {
+          checkEl.className = 'alert alert-success py-2 px-3 fs-8 mb-0';
+          checkEl.innerHTML = `Solde restant après validation : <strong>${soldeApres} j</strong>`;
+          submitBtn.disabled = false;
+        }
+      } else {
+        submitBtn.className = 'btn btn-sm btn-danger';
+        submitBtn.textContent = 'Confirmer le refus';
+        submitBtn.disabled = false;
+        checkEl.className = 'alert alert-secondary py-2 px-3 fs-8 mb-0';
+        checkEl.textContent = 'Le refus n\'impacte pas le solde de congés de l\'agent.';
+      }
+
+      new bootstrap.Modal(document.getElementById('modalValidation')).show();
+    }
+
+    function confirmValidationDecision(e) {
+      e.preventDefault();
+      const id = document.getElementById('valFormDemandeId').value;
+      const action = document.getElementById('valFormAction').value;
+      const validator = document.getElementById('valFormValidator').value.trim() || 'Direction RH';
+      const obs = document.getElementById('valFormObservation').value.trim();
+
+      const d = db.demandes.find(x => x.IdDemande === id);
+      if (!d) return;
+
+      if (action === 'ACCORDER') {
+        d.StatutDemande = 'Accordé';
+        d.ValidePar = validator;
+        if (obs) d.Observation = obs;
+        showAlert(`Demande ${id} accordée et soldes recalculés !`, 'success');
+      } else {
+        d.StatutDemande = 'Refusé';
+        d.ValidePar = validator;
+        if (obs) d.Observation = obs;
+        showAlert(`Demande ${id} refusée.`, 'info');
+      }
+
+      saveDatabase();
+      bootstrap.Modal.getInstance(document.getElementById('modalValidation')).hide();
+      refreshAllViews();
+    }
+
+    // --- RENDER BALANCES ---
+    function renderBalancesTable() {
+      const tbody = document.getElementById('tbodyBalances');
+      tbody.innerHTML = db.employees.map(emp => {
+        const ca = getSoldeDetails(emp.Matricule, 'CA', currentYear);
+        const cm = getSoldeDetails(emp.Matricule, 'CM', currentYear);
+        const ce = getSoldeDetails(emp.Matricule, 'CE', currentYear);
+        const totalAcc = ca.JoursAccordes + cm.JoursAccordes + ce.JoursAccordes;
+
+        let badge = '<span class="badge bg-success fs-8">Normal</span>';
+        if (ca.SoldeRestant === 0) badge = '<span class="badge bg-danger fs-8">Solde Épuisé</span>';
+        else if (ca.Observation === 'SOLDE FAIBLE') badge = '<span class="badge bg-warning text-dark fs-8">Solde Faible</span>';
+
+        return `
+          <tr>
+            <td class="font-monospace fw-bold">${emp.Matricule}</td>
+            <td class="fw-semibold">${emp.Nom}</td>
+            <td>${emp.Direction}</td>
+            <td class="text-center font-monospace">${ca.SoldeRestant} j <small class="text-muted d-block">${ca.JoursAccordes}j pris</small></td>
+            <td class="text-center font-monospace">${cm.SoldeRestant} j</td>
+            <td class="text-center font-monospace">${ce.SoldeRestant} j</td>
+            <td class="text-center font-monospace fw-bold text-primary">${totalAcc} j</td>
+            <td class="text-center">${badge}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="openRecapForMatricule('${emp.Matricule}')">Fiche</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // --- RENDER INDIVIDUAL RECAP ---
+    function openRecapForMatricule(mat) {
+      document.getElementById('recapEmployeeSelect').value = mat;
+      showView('individual-recap', document.querySelector('a[onclick*="individual-recap"]'));
+      renderIndividualRecap();
+    }
+
+    function renderIndividualRecap() {
+      const sel = document.getElementById('recapEmployeeSelect');
+      if (sel.options.length === 0) {
+        sel.innerHTML = db.employees.map(e => `<option value="${e.Matricule}">${e.Matricule} — ${e.Nom}</option>`).join('');
+      }
+
+      const mat = sel.value || (db.employees[0] ? db.employees[0].Matricule : '');
+      const emp = db.employees.find(e => e.Matricule === mat);
+      if (!emp) return;
+
+      const soldes = db.leaveTypes.map(t => getSoldeDetails(mat, t.CodeType, currentYear));
+      const myReqs = db.demandes.filter(d => d.Matricule === mat && d.Annee === currentYear);
+
+      const totalAcc = soldes.reduce((s, x) => s + x.JoursAccordes, 0);
+      const totalAtt = soldes.reduce((s, x) => s + x.JoursEnAttente, 0);
+      const totalMax = soldes.reduce((s, x) => s + x.SoldeMaximum, 0);
+      const totalRestant = soldes.reduce((s, x) => s + x.SoldeRestant, 0);
+
+      const html = `
+        <div class="border-bottom pb-3 mb-4 d-flex justify-content-between align-items-end">
+          <div>
+            <h5 class="fw-bold mb-1">GESTION RH – FICHE RÉCAPITULATIVE DES CONGÉS</h5>
+            <small class="text-muted">Exercice Statutaire : <strong class="font-monospace text-dark">${currentYear}</strong></small>
+          </div>
+          <span class="badge bg-dark font-monospace fs-7">RÉF : ${emp.Matricule}-${currentYear}</span>
+        </div>
+
+        <div class="row g-3 bg-light p-3 rounded mb-4 fs-7">
+          <div class="col-6 col-md-3"><small class="text-muted d-block">Matricule</small><strong class="font-monospace">${emp.Matricule}</strong></div>
+          <div class="col-6 col-md-3"><small class="text-muted d-block">Nom complet</small><strong>${emp.Nom}</strong></div>
+          <div class="col-6 col-md-3"><small class="text-muted d-block">Direction</small><strong>${emp.Direction}</strong></div>
+          <div class="col-6 col-md-3"><small class="text-muted d-block">Catégorie</small><strong>${emp.Categorie} (${emp.Sexe})</strong></div>
+        </div>
+
+        <h6 class="fw-bold mb-2">Tableau des Droits et Soldes par Type de Congé</h6>
+        <div class="table-responsive mb-4">
+          <table class="table table-bordered align-middle fs-7 mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Type de congé</th>
+                <th class="text-center">Solde maximum</th>
+                <th class="text-center">Jours accordés</th>
+                <th class="text-center">En attente</th>
+                <th class="text-center">Solde restant</th>
+                <th class="text-center">Observation</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${soldes.map(s => {
+                let obsClass = s.Observation === 'ACCORDÉ' ? 'text-success fw-bold' : s.Observation === 'ALERTE' ? 'text-danger fw-bold' : s.Observation === 'SOLDE FAIBLE' ? 'text-warning fw-bold' : 'text-danger fw-bold';
+                return `
+                  <tr>
+                    <td class="fw-semibold">${s.Libelle} <small class="text-muted font-monospace">(${s.CodeType})</small></td>
+                    <td class="text-center font-monospace">${s.SoldeMaximum} j</td>
+                    <td class="text-center font-monospace text-success fw-bold">${s.JoursAccordes} j</td>
+                    <td class="text-center font-monospace text-warning">${s.JoursEnAttente} j</td>
+                    <td class="text-center font-monospace text-primary fw-bold">${s.SoldeRestant} j</td>
+                    <td class="text-center ${obsClass}">${s.Observation}</td>
+                  </tr>
+                `;
+              }).join('')}
+              <tr class="table-secondary fw-bold">
+                <td>TOTAL CUMULÉ</td>
+                <td class="text-center font-monospace">${totalMax} j</td>
+                <td class="text-center font-monospace text-success">${totalAcc} j</td>
+                <td class="text-center font-monospace text-warning">${totalAtt} j</td>
+                <td class="text-center font-monospace text-primary">${totalRestant} j</td>
+                <td class="text-center text-muted">Synthèse</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h6 class="fw-bold mb-2">Historique des Demandes de l'Agent</h6>
+        <div class="table-responsive mb-4">
+          <table class="table table-sm table-striped align-middle fs-8 mb-0">
+            <thead>
+              <tr>
+                <th>Réf.</th>
+                <th>Type</th>
+                <th>Période</th>
+                <th class="text-center">Durée</th>
+                <th>Statut</th>
+                <th>Motif</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${myReqs.length === 0 ? '<tr><td colspan="6" class="text-center text-muted py-2">Aucune demande enregistrée.</td></tr>' : myReqs.map(d => `
+                <tr>
+                  <td class="font-monospace fw-bold">${d.IdDemande}</td>
+                  <td>${d.CodeType}</td>
+                  <td class="font-monospace">${d.DateDebut} → ${d.DateFin}</td>
+                  <td class="text-center font-monospace fw-bold">${d.NbJours} j</td>
+                  <td><span class="badge ${d.StatutDemande === 'Accordé' ? 'bg-success' : d.StatutDemande === 'En attente' ? 'bg-warning text-dark' : 'bg-danger'}">${d.StatutDemande}</span></td>
+                  <td>${d.Motif}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="row pt-4 border-top mt-4 fs-8 text-muted">
+          <div class="col-6">Signature de l'Agent :<br><br><br>__________________________</div>
+          <div class="col-6 text-end">Visa de la Direction RH :<br><br><br>__________________________</div>
+        </div>
+      `;
+
+      document.getElementById('recapSheetContent').innerHTML = html;
+    }
+
+    function downloadIndividualRecapPdf() {
+      const sel = document.getElementById('recapEmployeeSelect');
+      const mat = sel.value;
+      const emp = db.employees.find(e => e.Matricule === mat);
+      if (!emp) return;
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(14);
+      doc.text(db.settings.NomOrganisation.toUpperCase(), 14, 18);
+      doc.setFontSize(10);
+      doc.text(`FICHE RÉCAPITULATIVE INDIVIDUELLE DES CONGÉS (${currentYear})`, 14, 25);
+      doc.line(14, 28, 196, 28);
+
+      doc.setFontSize(9);
+      doc.text(`Matricule : ${emp.Matricule}   Nom : ${emp.Nom}`, 14, 35);
+      doc.text(`Direction : ${emp.Direction}   Catégorie : ${emp.Categorie}`, 14, 41);
+
+      const soldes = db.leaveTypes.map(t => getSoldeDetails(mat, t.CodeType, currentYear));
+      const body = soldes.map(s => [s.Libelle, `${s.SoldeMaximum} j`, `${s.JoursAccordes} j`, `${s.JoursEnAttente} j`, `${s.SoldeRestant} j`, s.Observation]);
+
+      doc.autoTable({
+        startY: 46,
+        head: [['Type de congé', 'Solde max', 'Accordés', 'En attente', 'Solde restant', 'Observation']],
+        body: body,
+        theme: 'grid'
+      });
+
+      doc.save(`Fiche_Recap_${emp.Matricule}_${currentYear}.pdf`);
+      showAlert('PDF téléchargé avec succès !', 'success');
+    }
+
+    // --- RENDER ABSENTEEISM ---
+    function renderAbsenteeismTable() {
+      const ranking = db.employees.map(emp => {
+        const approved = db.demandes.filter(d => d.Matricule === emp.Matricule && d.Annee === currentYear && d.StatutDemande === 'Accordé');
+        const days = approved.reduce((s, d) => s + d.NbJours, 0);
+        return {
+          Matricule: emp.Matricule,
+          Nom: emp.Nom,
+          Direction: emp.Direction,
+          Categorie: emp.Categorie,
+          DemandesCount: approved.length,
+          TotalJours: days
+        };
+      }).sort((a, b) => b.TotalJours - a.TotalJours);
+
+      const totalDays = ranking.reduce((s, r) => s + r.TotalJours, 0);
+      const totalAgents = ranking.filter(r => r.TotalJours > 0).length;
+      const avg = ranking.length > 0 ? (totalDays / ranking.length).toFixed(1) : 0;
+
+      document.getElementById('absTotalDays').textContent = totalDays + ' j';
+      document.getElementById('absTotalAgents').textContent = totalAgents;
+      document.getElementById('absAvgDays').textContent = avg + ' j';
+
+      document.getElementById('tbodyAbsenteeism').innerHTML = ranking.map((r, idx) => `
+        <tr>
+          <td class="text-center font-monospace fw-bold ${idx < 3 ? 'text-primary' : 'text-muted'}">#${idx + 1}</td>
+          <td class="font-monospace fw-bold">${r.Matricule}</td>
+          <td class="fw-semibold">${r.Nom}</td>
+          <td>${r.Direction}</td>
+          <td>${r.Categorie}</td>
+          <td class="text-center font-monospace">${r.DemandesCount}</td>
+          <td class="text-center font-monospace fw-bold text-danger fs-7">${r.TotalJours} j</td>
+          <td class="text-center font-monospace">${Math.round((r.TotalJours / 30) * 100)}%</td>
+        </tr>
+      `).join('');
+    }
+
+    // --- RENDER DIRECTION SEARCH ---
+    function renderDirectionSearch() {
+      const dir = document.getElementById('searchDirSelect').value;
+      const st = document.getElementById('searchDirStatus').value;
+
+      const reqs = db.demandes.filter(d => {
+        const emp = db.employees.find(e => e.Matricule === d.Matricule);
+        const matchesDir = emp && emp.Direction === dir;
+        const matchesSt = st === 'Tous' || d.StatutDemande === st;
+        const matchesYr = d.Annee === currentYear;
+        return matchesDir && matchesSt && matchesYr;
+      });
+
+      const distinctEmp = new Set(reqs.map(d => d.Matricule)).size;
+      const accordes = reqs.filter(d => d.StatutDemande === 'Accordé').reduce((s, d) => s + d.NbJours, 0);
+
+      document.getElementById('searchDirDistinctEmp').textContent = distinctEmp;
+      document.getElementById('searchDirTotalDem').textContent = reqs.length;
+      document.getElementById('searchDirTotalDays').textContent = accordes + ' j';
+
+      document.getElementById('tbodySearchDir').innerHTML = reqs.map(d => {
+        const emp = db.employees.find(e => e.Matricule === d.Matricule) || { Nom: '—' };
+        return `
+          <tr>
+            <td class="font-monospace fw-bold">${d.Matricule}</td>
+            <td class="fw-semibold">${emp.Nom}</td>
+            <td>${d.CodeType}</td>
+            <td class="font-monospace">${d.DateDebut} → ${d.DateFin}</td>
+            <td class="text-center font-monospace fw-bold">${d.NbJours} j</td>
+            <td><span class="badge ${d.StatutDemande === 'Accordé' ? 'bg-success' : 'bg-warning text-dark'}">${d.StatutDemande}</span></td>
+            <td>${d.Motif}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // --- SETTINGS ---
+    function loadSettingsForm() {
+      document.getElementById('settingOrgName').value = db.settings.NomOrganisation;
+      document.getElementById('settingSeuilFaible').value = db.settings.SeuilAlerteSoldeFaible;
+      if (document.getElementById(`calc${db.settings.ModeCalculJours.charAt(0).toUpperCase() + db.settings.ModeCalculJours.slice(1)}`)) {
+        document.getElementById(`calc${db.settings.ModeCalculJours.charAt(0).toUpperCase() + db.settings.ModeCalculJours.slice(1)}`).checked = true;
+      }
+    }
+
+    function saveSettings(e) {
+      e.preventDefault();
+      db.settings.NomOrganisation = document.getElementById('settingOrgName').value.trim();
+      db.settings.SeuilAlerteSoldeFaible = parseInt(document.getElementById('settingSeuilFaible').value);
+      const mode = document.querySelector('input[name="calcMode"]:checked').value;
+      db.settings.ModeCalculJours = mode;
+      saveDatabase();
+      showAlert('Paramètres enregistrés avec succès !', 'success');
+    }
+
+    // --- PDF / EXCEL EXPORTERS ---
+    function exportAnnualPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text(db.settings.NomOrganisation, 14, 20);
+      doc.text(`RAPPORT ANNUEL DES CONGÉS (${currentYear})`, 14, 28);
+      const accordes = db.demandes.filter(d => d.Annee === currentYear && d.StatutDemande === 'Accordé');
+      const body = accordes.map(d => [d.IdDemande, d.Matricule, d.CodeType, `${d.DateDebut} au ${d.DateFin}`, `${d.NbJours} j`, d.StatutDemande]);
+      doc.autoTable({ startY: 35, head: [['Réf', 'Matricule', 'Type', 'Période', 'Durée', 'Statut']], body });
+      doc.save(`Rapport_Annuel_RH_${currentYear}.pdf`);
+    }
+
+    function exportEmployeesPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l');
+      doc.text('RÉPERTOIRE DU PERSONNEL', 14, 18);
+      const body = db.employees.map(e => [e.Matricule, e.Nom, e.Direction, e.Categorie, e.Sexe, e.AnneeEmbauche, e.Poste || '—']);
+      doc.autoTable({ startY: 25, head: [['Matricule', 'Nom', 'Direction', 'Catégorie', 'Sexe', 'Embauche', 'Poste']], body });
+      doc.save('Liste_Employes.pdf');
+    }
+
+    function exportEmployeesExcel() {
+      const data = db.employees.map(e => ({ Matricule: e.Matricule, Nom: e.Nom, Direction: e.Direction, Catégorie: e.Categorie, Sexe: e.Sexe, Embauche: e.AnneeEmbauche, Poste: e.Poste }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Employés');
+      XLSX.writeFile(wb, 'Liste_Employes.xlsx');
+    }
+
+    function exportRequestsPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l');
+      doc.text(`REGISTRE DES DEMANDES (${currentYear})`, 14, 18);
+      const reqs = db.demandes.filter(d => d.Annee === currentYear);
+      const body = reqs.map(d => [d.IdDemande, d.Matricule, d.CodeType, d.DateDebut, d.DateFin, `${d.NbJours} j`, d.StatutDemande, d.Motif]);
+      doc.autoTable({ startY: 25, head: [['Réf', 'Matricule', 'Type', 'Début', 'Fin', 'Durée', 'Statut', 'Motif']], body });
+      doc.save(`Demandes_${currentYear}.pdf`);
+    }
+
+    function exportRequestsExcel() {
+      const ws = XLSX.utils.json_to_sheet(db.demandes);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Demandes');
+      XLSX.writeFile(wb, `Demandes_${currentYear}.xlsx`);
+    }
+
+    function exportAbsenteeismPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text(`CLASSEMENT PAR ABSENTÉISME (${currentYear})`, 14, 18);
+      const ranking = db.employees.map(emp => {
+        const approved = db.demandes.filter(d => d.Matricule === emp.Matricule && d.Annee === currentYear && d.StatutDemande === 'Accordé');
+        return [emp.Matricule, emp.Nom, emp.Direction, emp.Categorie, `${approved.reduce((s, d) => s + d.NbJours, 0)} j`];
+      }).sort((a, b) => parseInt(b[4]) - parseInt(a[4]));
+      doc.autoTable({ startY: 25, head: [['Matricule', 'Nom', 'Direction', 'Catégorie', 'Total Jours']], body: ranking });
+      doc.save(`Absentéisme_${currentYear}.pdf`);
+    }
+
+    function exportAbsenteeismExcel() {
+      const ranking = db.employees.map(emp => {
+        const approved = db.demandes.filter(d => d.Matricule === emp.Matricule && d.Annee === currentYear && d.StatutDemande === 'Accordé');
+        return { Matricule: emp.Matricule, Nom: emp.Nom, Direction: emp.Direction, Catégorie: emp.Categorie, TotalJours: approved.reduce((s, d) => s + d.NbJours, 0) };
+      }).sort((a, b) => b.TotalJours - a.TotalJours);
+      const ws = XLSX.utils.json_to_sheet(ranking);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Absentéisme');
+      XLSX.writeFile(wb, `Absentéisme_${currentYear}.xlsx`);
+    }
+
+    function exportBalancesPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l');
+      doc.text(`ÉTAT DES SOLDES DE CONGÉS (${currentYear})`, 14, 18);
+      const body = db.employees.map(emp => {
+        const ca = getSoldeDetails(emp.Matricule, 'CA', currentYear);
+        const cm = getSoldeDetails(emp.Matricule, 'CM', currentYear);
+        return [emp.Matricule, emp.Nom, emp.Direction, `${ca.SoldeRestant} j`, `${cm.SoldeRestant} j`, `${ca.JoursAccordes + cm.JoursAccordes} j`, ca.Observation];
+      });
+      doc.autoTable({ startY: 25, head: [['Matricule', 'Nom', 'Direction', 'CA Restant', 'CM Restant', 'Total Pris', 'Statut']], body });
+      doc.save(`Soldes_${currentYear}.pdf`);
+    }
+
+    function exportBalancesExcel() {
+      const body = db.employees.map(emp => {
+        const ca = getSoldeDetails(emp.Matricule, 'CA', currentYear);
+        const cm = getSoldeDetails(emp.Matricule, 'CM', currentYear);
+        return { Matricule: emp.Matricule, Nom: emp.Nom, Direction: emp.Direction, CA_Restant: ca.SoldeRestant, CM_Restant: cm.SoldeRestant, Total_Pris: ca.JoursAccordes + cm.JoursAccordes, Statut: ca.Observation };
+      });
+      const ws = XLSX.utils.json_to_sheet(body);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Soldes');
+      XLSX.writeFile(wb, `Soldes_${currentYear}.xlsx`);
+    }
+
+    function refreshAllViews() {
+      renderDashboard();
+      renderEmployeesTable();
+      renderLeaveTypes();
+      renderRequestsTable();
+      renderValidationCards();
+      renderBalancesTable();
+      renderIndividualRecap();
+      renderAbsenteeismTable();
+      renderDirectionSearch();
+    }
+
+    // --- INIT ON LOAD ---
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDatabase();
+      refreshAllViews();
+    });
+  </script>
+</body>
+</html>

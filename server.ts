@@ -305,6 +305,9 @@ async function startServer() {
     }
   });
 
+  // Serve static files (including standalone HTML files: gestion_rh_bootstrap.html and gestion_rh_tailwind.html)
+  app.use(express.static(path.join(__dirname, 'public')));
+
   // Vite Integration in Development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

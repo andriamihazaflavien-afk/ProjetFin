@@ -19,9 +19,12 @@ import {
   ChevronRight,
   LogOut,
   Building,
+  FileCode,
+  Layers,
 } from 'lucide-react';
 import { UserRole } from './types';
 import { ToastProvider, useToast } from './components/Toast';
+import { HtmlExportModal } from './components/HtmlExportModal';
 import { DashboardView } from './views/DashboardView';
 import { EmployeesView } from './views/EmployeesView';
 import { LeaveTypesView } from './views/LeaveTypesView';
@@ -60,6 +63,8 @@ export function AppContent() {
   const [currentRole, setCurrentRole] = useState<UserRole>('ADMINISTRATEUR');
   const [currentEmployeeMatricule, setCurrentEmployeeMatricule] = useState('M0121');
   const [selectedRecapMatricule, setSelectedRecapMatricule] = useState('M0121');
+  const [isHtmlModalOpen, setIsHtmlModalOpen] = useState(false);
+  const [styleFramework, setStyleFramework] = useState<'tailwind' | 'bootstrap'>('tailwind');
 
   // Initialize theme
   useEffect(() => {
@@ -170,8 +175,14 @@ export function AppContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col antialiased">
-      {/* Top Header Contract */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 py-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      {/* Top Header Contract (Tailwind / Bootstrap 5 adaptive) */}
+      <header
+        className={`sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 py-3 transition-colors ${
+          styleFramework === 'bootstrap'
+            ? 'bg-[#212529] text-white border-b border-[#373b3e] shadow-md'
+            : 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800'
+        }`}
+      >
         {/* Left: Mobile hamburger & Brand Title */}
         <div className="flex items-center gap-3">
           <button
@@ -212,8 +223,43 @@ export function AppContent() {
           </span>
         </div>
 
-        {/* Right: Actions, Role Selector & Theme Toggle */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Right: Actions, HTML Export, Role Selector & Theme Toggle */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          {/* HTML/CSS/JS Standalone Export Button */}
+          <button
+            onClick={() => setIsHtmlModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors shadow-xs"
+            title="Télécharger / Visualiser les fichiers HTML / CSS / JS autonomes en Bootstrap 5 et Tailwind"
+          >
+            <FileCode className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">HTML / CSS / JS</span>
+            <span className="text-[10px] bg-blue-200 dark:bg-blue-900/80 px-1 py-0.2 rounded font-mono">Bootstrap & Tailwind</span>
+          </button>
+
+          {/* Style Framework switcher */}
+          <div className="hidden lg:flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 text-xs font-semibold">
+            <button
+              onClick={() => setStyleFramework('tailwind')}
+              className={`px-2 py-1 rounded-lg transition-all ${
+                styleFramework === 'tailwind'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Tailwind
+            </button>
+            <button
+              onClick={() => setStyleFramework('bootstrap')}
+              className={`px-2 py-1 rounded-lg transition-all ${
+                styleFramework === 'bootstrap'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Bootstrap
+            </button>
+          </div>
+
           {/* Active Role Badge & Switcher */}
           <button
             onClick={() => setCurrentView('roles')}
@@ -421,6 +467,12 @@ export function AppContent() {
           </div>
         </main>
       </div>
+
+      {/* HTML / CSS / JS Standalone Export Modal */}
+      <HtmlExportModal
+        isOpen={isHtmlModalOpen}
+        onClose={() => setIsHtmlModalOpen(false)}
+      />
     </div>
   );
 }

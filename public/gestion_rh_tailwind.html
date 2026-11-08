@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GESTION RH – CONGÉS & ABSENCES (Édition HTML / CSS / JS / Tailwind)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Chart.js, jsPDF, AutoTable, SheetJS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+  <!-- Top Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-3 flex items-center justify-between shadow-xs">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm">RH</div>
+      <div>
+        <span class="font-extrabold text-base tracking-tight">GESTION RH</span>
+        <span class="text-xs text-slate-400 ml-2">Édition HTML / CSS / JS / Tailwind</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div class="flex items-center bg-slate-100 rounded-xl p-1 text-xs">
+        <span class="px-2 text-slate-500 font-medium">Exercice :</span>
+        <select id="twYearSelect" class="bg-transparent font-bold font-mono focus:outline-none" onchange="twChangeYear(this.value)">
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+          <option value="2027">2027</option>
+        </select>
+      </div>
+
+      <div class="flex items-center bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl text-xs font-semibold border border-blue-200">
+        Rôle : Administrateur
+      </div>
+    </div>
+  </header>
+
+  <!-- Workspace Container -->
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-slate-200 p-3 space-y-1 overflow-y-auto">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 py-2">Menu Principal</div>
+      <button onclick="twShowView('dashboard', this)" class="tw-nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white shadow-xs">
+        <span>📊</span> Tableau de bord
+      </button>
+      <button onclick="twShowView('employees', this)" class="tw-nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">
+        <span>👥</span> Employés
+      </button>
+      <button onclick="twShowView('requests', this)" class="tw-nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">
+        <span>📅</span> Demandes de congés
+      </button>
+      <button onclick="twShowView('balances', this)" class="tw-nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">
+        <span>📑</span> Soldes de congés
+      </button>
+      <button onclick="twShowView('absenteeism', this)" class="tw-nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">
+        <span>📉</span> Absentéisme
+      </button>
+      <button onclick="twShowView('recap', this)" class="tw-nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100">
+        <span>📄</span> Fiche récapitulative
+      </button>
+    </aside>
+
+    <!-- Main Viewport -->
+    <main class="flex-1 p-6 overflow-y-auto">
+      <!-- 1. DASHBOARD -->
+      <section id="tw-view-dashboard" class="tw-view space-y-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+          <div>
+            <h1 class="text-xl font-bold">Tableau de Bord RH & Congés</h1>
+            <p class="text-xs text-slate-500">Statistiques et calculs en temps réel (Tailwind CSS)</p>
+          </div>
+          <button onclick="twExportAnnualPdf()" class="px-3 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-xs">
+            Télécharger Rapport PDF
+          </button>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs text-center">
+            <span class="text-xs text-slate-400 font-semibold block">Effectif</span>
+            <span id="twKpiEmp" class="text-2xl font-bold font-mono text-slate-900 mt-1 block">0</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs text-center">
+            <span class="text-xs text-slate-400 font-semibold block">Demandes</span>
+            <span id="twKpiDem" class="text-2xl font-bold font-mono text-slate-900 mt-1 block">0</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-emerald-200 shadow-xs text-center">
+            <span class="text-xs text-emerald-600 font-semibold block">Accordées</span>
+            <span id="twKpiAcc" class="text-2xl font-bold font-mono text-emerald-600 mt-1 block">0</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-amber-200 shadow-xs text-center">
+            <span class="text-xs text-amber-600 font-semibold block">En attente</span>
+            <span id="twKpiAtt" class="text-2xl font-bold font-mono text-amber-600 mt-1 block">0</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-rose-200 shadow-xs text-center">
+            <span class="text-xs text-rose-600 font-semibold block">Refusées</span>
+            <span id="twKpiRef" class="text-2xl font-bold font-mono text-rose-600 mt-1 block">0</span>
+          </div>
+          <div class="bg-white p-4 rounded-2xl border border-blue-200 shadow-xs text-center">
+            <span class="text-xs text-blue-600 font-semibold block">Jours d'Absence</span>
+            <span id="twKpiDays" class="text-2xl font-bold font-mono text-blue-600 mt-1 block">0 j</span>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <h3 class="text-sm font-bold mb-3">Histogramme des Demandes par Statut</h3>
+            <div style="height: 250px;"><canvas id="twChartHisto"></canvas></div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <h3 class="text-sm font-bold mb-3">Répartition en Pourcentage (%)</h3>
+            <div style="height: 250px;"><canvas id="twChartPie"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. EMPLOYEES -->
+      <section id="tw-view-employees" class="tw-view hidden space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+          <h1 class="text-xl font-bold">Répertoire des Employés</h1>
+          <div class="flex gap-2">
+            <button onclick="twExportEmpExcel()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl">Excel</button>
+            <button onclick="twExportEmpPdf()" class="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl">PDF</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+              <tr><th class="p-3">Matricule</th><th class="p-3">Nom</th><th class="p-3">Direction</th><th class="p-3">Catégorie</th><th class="p-3">Sexe</th><th class="p-3">Embauche</th><th class="p-3">Poste</th></tr>
+            </thead>
+            <tbody id="twTbodyEmployees" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. REQUESTS -->
+      <section id="tw-view-requests" class="tw-view hidden space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+          <h1 class="text-xl font-bold">Demandes de Congé</h1>
+          <div class="flex gap-2">
+            <button onclick="twExportReqExcel()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl">Excel</button>
+            <button onclick="twExportReqPdf()" class="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl">PDF</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+              <tr><th class="p-3">Réf</th><th class="p-3">Agent</th><th class="p-3">Type</th><th class="p-3">Période</th><th class="p-3 text-center">Durée</th><th class="p-3">Statut</th><th class="p-3">Motif</th></tr>
+            </thead>
+            <tbody id="twTbodyRequests" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 4. BALANCES -->
+      <section id="tw-view-balances" class="tw-view hidden space-y-4">
+        <h1 class="text-xl font-bold pb-3 border-b border-slate-200">Synthèse des Soldes de Congés</h1>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+              <tr><th class="p-3">Matricule</th><th class="p-3">Nom</th><th class="p-3">Direction</th><th class="p-3 text-center">CA Restant</th><th class="p-3 text-center">CM Restant</th><th class="p-3 text-center">Total Accordé</th><th class="p-3 text-center">Alerte</th></tr>
+            </thead>
+            <tbody id="twTbodyBalances" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 5. ABSENTEEISM -->
+      <section id="tw-view-absenteeism" class="tw-view hidden space-y-4">
+        <h1 class="text-xl font-bold pb-3 border-b border-slate-200">Classement par Absentéisme</h1>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+              <tr><th class="p-3 text-center">Rang</th><th class="p-3">Matricule</th><th class="p-3">Nom</th><th class="p-3">Direction</th><th class="p-3 text-center">Jours Absents</th><th class="p-3 text-center">% Consommé</th></tr>
+            </thead>
+            <tbody id="twTbodyAbsenteeism" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 6. RECAP -->
+      <section id="tw-view-recap" class="tw-view hidden space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+          <h1 class="text-xl font-bold">Fiche Récapitulative Individuelle</h1>
+          <button onclick="twDownloadRecapPdf()" class="px-4 py-2 text-xs font-semibold bg-blue-600 text-white rounded-xl shadow-xs">Télécharger Fiche PDF</button>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-3">
+          <span class="text-xs font-bold">Agent :</span>
+          <select id="twRecapSelect" class="text-xs bg-slate-50 border border-slate-200 p-2 rounded-xl flex-1 font-mono" onchange="twRenderRecap()"></select>
+        </div>
+        <div id="twRecapContent" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Embedded Data with 15 employees
+    const TW_DB = {
+      year: 2026,
+      employees: [
+        { Matricule: 'M0121', Nom: 'Marc Durand', Direction: 'Ressources Humaines', Sexe: 'Masculin', Categorie: 'Cadre', AnneeEmbauche: 2017, Poste: 'Directeur RH' },
+        { Matricule: 'M0084', Nom: 'Sophie Martin', Direction: 'Ressources Humaines', Sexe: 'Féminin', Categorie: 'Employé', AnneeEmbauche: 2020, Poste: 'Chargée de Paie' },
+        { Matricule: 'M0045', Nom: 'Jean-Pierre Dubois', Direction: 'Finance & Comptabilité', Sexe: 'Masculin', Categorie: 'Cadre', AnneeEmbauche: 2015, Poste: 'Chef Comptable' },
+        { Matricule: 'M0092', Nom: 'Amina Benali', Direction: 'Finance & Comptabilité', Sexe: 'Féminin', Categorie: 'Maîtrise', AnneeEmbauche: 2019, Poste: 'Contrôleur de Gestion' },
+        { Matricule: 'M0103', Nom: 'Alexandre Lefevre', Direction: 'Systèmes d\'Information', Sexe: 'Masculin', Categorie: 'Cadre', AnneeEmbauche: 2018, Poste: 'Lead Architecte' },
+        { Matricule: 'M0115', Nom: 'Claire Moreau', Direction: 'Systèmes d\'Information', Sexe: 'Féminin', Categorie: 'Maîtrise', AnneeEmbauche: 2021, Poste: 'Admin Systèmes' },
+        { Matricule: 'M0130', Nom: 'Thomas Bernard', Direction: 'Systèmes d\'Information', Sexe: 'Masculin', Categorie: 'Employé', AnneeEmbauche: 2022, Poste: 'Support IT' },
+        { Matricule: 'M0067', Nom: 'Fatou Diallo', Direction: 'Commercial & Marketing', Sexe: 'Féminin', Categorie: 'Cadre', AnneeEmbauche: 2016, Poste: 'Directrice Commerciale' },
+        { Matricule: 'M0078', Nom: 'Lucas Lambert', Direction: 'Commercial & Marketing', Sexe: 'Masculin', Categorie: 'Maîtrise', AnneeEmbauche: 2019, Poste: 'Comptes Clés' },
+        { Matricule: 'M0144', Nom: 'Camille Leroy', Direction: 'Commercial & Marketing', Sexe: 'Féminin', Categorie: 'Employé', AnneeEmbauche: 2023, Poste: 'Assistante ADV' },
+        { Matricule: 'M0052', Nom: 'David Garnier', Direction: 'Opérations & Logistique', Sexe: 'Masculin', Categorie: 'Cadre', AnneeEmbauche: 2015, Poste: 'Directeur Logistique' },
+        { Matricule: 'M0089', Nom: 'Nathalie Roux', Direction: 'Opérations & Logistique', Sexe: 'Féminin', Categorie: 'Maîtrise', AnneeEmbauche: 2020, Poste: 'Superviseur' },
+        { Matricule: 'M0156', Nom: 'Karim Zeroual', Direction: 'Opérations & Logistique', Sexe: 'Masculin', Categorie: 'Ouvrier', AnneeEmbauche: 2022, Poste: 'Préparateur' },
+        { Matricule: 'M0162', Nom: 'Philippe Meunier', Direction: 'Opérations & Logistique', Sexe: 'Masculin', Categorie: 'Ouvrier', AnneeEmbauche: 2023, Poste: 'Agent de Quai' },
+        { Matricule: 'M0031', Nom: 'Isabelle Mercier', Direction: 'Direction Générale', Sexe: 'Féminin', Categorie: 'Cadre', AnneeEmbauche: 2014, Poste: 'Secrétaire Générale' },
+      ],
+      types: [
+        { CodeType: 'CA', Libelle: 'Congé annuel', SoldeMax: 30 },
+        { CodeType: 'CM', Libelle: 'Congé maladie', SoldeMax: 10 },
+        { CodeType: 'CE', Libelle: 'Congé exceptionnel', SoldeMax: 5 },
+      ],
+      requests: [
+        { IdDemande: 'DEM-2026-001', Matricule: 'M0121', CodeType: 'CA', DateDebut: '2026-01-12', DateFin: '2026-01-30', NbJours: 15, Annee: 2026, Motif: 'Congés hiver', StatutDemande: 'Accordé' },
+        { IdDemande: 'DEM-2026-002', Matricule: 'M0121', CodeType: 'CM', DateDebut: '2026-02-09', DateFin: '2026-02-11', NbJours: 3, Annee: 2026, Motif: 'Arrêt médical', StatutDemande: 'Accordé' },
+        { IdDemande: 'DEM-2026-003', Matricule: 'M0121', CodeType: 'CA', DateDebut: '2026-07-06', DateFin: '2026-07-17', NbJours: 10, Annee: 2026, Motif: 'Congés été', StatutDemande: 'Accordé' },
+        { IdDemande: 'DEM-2026-004', Matricule: 'M0121', CodeType: 'CE', DateDebut: '2026-09-14', DateFin: '2026-09-18', NbJours: 5, Annee: 2026, Motif: 'Mariage', StatutDemande: 'En attente' },
+        { IdDemande: 'DEM-2026-005', Matricule: 'M0084', CodeType: 'CA', DateDebut: '2026-02-16', DateFin: '2026-03-06', NbJours: 15, Annee: 2026, Motif: 'Voyage', StatutDemande: 'Accordé' },
+        { IdDemande: 'DEM-2026-006', Matricule: 'M0084', CodeType: 'CM', DateDebut: '2026-03-23', DateFin: '2026-03-31', NbJours: 7, Annee: 2026, Motif: 'Soins', StatutDemande: 'Accordé' },
+        { IdDemande: 'DEM-2026-007', Matricule: 'M0156', CodeType: 'CA', DateDebut: '2026-01-05', DateFin: '2026-01-23', NbJours: 15, Annee: 2026, Motif: 'Repos', StatutDemande: 'Accordé' },
+        { IdDemande: 'DEM-2026-008', Matricule: 'M0156', CodeType: 'CA', DateDebut: '2026-07-13', DateFin: '2026-07-31', NbJours: 15, Annee: 2026, Motif: 'Repos été', StatutDemande: 'Accordé' },
+      ]
+    };
+
+    let twHistoChart = null;
+    let twPieChart = null;
+
+    function twShowView(vId, btn) {
+      document.querySelectorAll('.tw-view').forEach(v => v.classList.add('hidden'));
+      document.getElementById(`tw-view-${vId}`).classList.remove('hidden');
+
+      document.querySelectorAll('.tw-nav-btn').forEach(b => {
+        b.className = 'tw-nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl text-slate-600 hover:bg-slate-100';
+      });
+      if (btn) btn.className = 'tw-nav-btn w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl bg-blue-600 text-white shadow-xs';
+
+      if (vId === 'dashboard') twRenderDashboard();
+      if (vId === 'employees') twRenderEmployees();
+      if (vId === 'requests') twRenderRequests();
+      if (vId === 'balances') twRenderBalances();
+      if (vId === 'absenteeism') twRenderAbsenteeism();
+      if (vId === 'recap') twRenderRecap();
+    }
+
+    function twChangeYear(yr) {
+      TW_DB.year = parseInt(yr);
+      twRenderDashboard();
+      twRenderRequests();
+      twRenderBalances();
+      twRenderAbsenteeism();
+      twRenderRecap();
+    }
+
+    function twRenderDashboard() {
+      const reqs = TW_DB.requests.filter(r => r.Annee === TW_DB.year);
+      const acc = reqs.filter(r => r.StatutDemande === 'Accordé');
+      const att = reqs.filter(r => r.StatutDemande === 'En attente');
+      const ref = reqs.filter(r => r.StatutDemande === 'Refusé');
+      const days = acc.reduce((s, r) => s + r.NbJours, 0);
+
+      document.getElementById('twKpiEmp').textContent = TW_DB.employees.length;
+      document.getElementById('twKpiDem').textContent = reqs.length;
+      document.getElementById('twKpiAcc').textContent = acc.length;
+      document.getElementById('twKpiAtt').textContent = att.length;
+      document.getElementById('twKpiRef').textContent = ref.length;
+      document.getElementById('twKpiDays').textContent = days + ' j';
+
+      if (twHistoChart) twHistoChart.destroy();
+      twHistoChart = new Chart(document.getElementById('twChartHisto'), {
+        type: 'bar',
+        data: {
+          labels: ['Accordées', 'En attente', 'Refusées'],
+          datasets: [{ data: [acc.length, att.length, ref.length], backgroundColor: ['#16a34a', '#d97706', '#dc2626'], borderRadius: 6 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      if (twPieChart) twPieChart.destroy();
+      const tot = reqs.length || 1;
+      twPieChart = new Chart(document.getElementById('twChartPie'), {
+        type: 'doughnut',
+        data: {
+          labels: [`Accordées (${((acc.length/tot)*100).toFixed(1)}%)`, `En attente (${((att.length/tot)*100).toFixed(1)}%)`, `Refusées (${((ref.length/tot)*100).toFixed(1)}%)`],
+          datasets: [{ data: [acc.length, att.length, ref.length], backgroundColor: ['#16a34a', '#d97706', '#dc2626'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }
+
+    function twRenderEmployees() {
+      document.getElementById('twTbodyEmployees').innerHTML = TW_DB.employees.map(e => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-mono font-bold">${e.Matricule}</td>
+          <td class="p-3 font-semibold">${e.Nom}</td>
+          <td class="p-3 text-slate-600">${e.Direction}</td>
+          <td class="p-3">${e.Categorie}</td>
+          <td class="p-3">${e.Sexe}</td>
+          <td class="p-3 font-mono">${e.AnneeEmbauche}</td>
+          <td class="p-3 text-slate-500">${e.Poste || '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function twRenderRequests() {
+      const reqs = TW_DB.requests.filter(r => r.Annee === TW_DB.year);
+      document.getElementById('twTbodyRequests').innerHTML = reqs.map(r => {
+        const emp = TW_DB.employees.find(e => e.Matricule === r.Matricule) || { Nom: '—' };
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-mono font-bold">${r.IdDemande}</td>
+            <td class="p-3 font-semibold">${emp.Nom} <span class="font-mono text-slate-400 block text-[11px]">${r.Matricule}</span></td>
+            <td class="p-3">${r.CodeType}</td>
+            <td class="p-3 font-mono">${r.DateDebut} → ${r.DateFin}</td>
+            <td class="p-3 text-center font-mono font-bold">${r.NbJours} j</td>
+            <td class="p-3 font-semibold ${r.StatutDemande === 'Accordé' ? 'text-emerald-600' : 'text-amber-600'}">${r.StatutDemande}</td>
+            <td class="p-3 text-slate-500">${r.Motif}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function twRenderBalances() {
+      document.getElementById('twTbodyBalances').innerHTML = TW_DB.employees.map(emp => {
+        const caReqs = TW_DB.requests.filter(r => r.Matricule === emp.Matricule && r.CodeType === 'CA' && r.Annee === TW_DB.year && r.StatutDemande === 'Accordé');
+        const cmReqs = TW_DB.requests.filter(r => r.Matricule === emp.Matricule && r.CodeType === 'CM' && r.Annee === TW_DB.year && r.StatutDemande === 'Accordé');
+        const caTaken = caReqs.reduce((s, r) => s + r.NbJours, 0);
+        const cmTaken = cmReqs.reduce((s, r) => s + r.NbJours, 0);
+        const caRem = 30 - caTaken;
+        const cmRem = 10 - cmTaken;
+        const total = caTaken + cmTaken;
+
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-mono font-bold">${emp.Matricule}</td>
+            <td class="p-3 font-semibold">${emp.Nom}</td>
+            <td class="p-3 text-slate-600">${emp.Direction}</td>
+            <td class="p-3 text-center font-mono font-bold">${caRem} j</td>
+            <td class="p-3 text-center font-mono">${cmRem} j</td>
+            <td class="p-3 text-center font-mono font-bold text-blue-600">${total} j</td>
+            <td class="p-3 text-center">${caRem === 0 ? '<span class="text-rose-600 font-bold">Épuisé</span>' : caRem <= 6 ? '<span class="text-amber-600 font-bold">Faible</span>' : '<span class="text-emerald-600 font-semibold">Normal</span>'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function twRenderAbsenteeism() {
+      const list = TW_DB.employees.map(emp => {
+        const approved = TW_DB.requests.filter(r => r.Matricule === emp.Matricule && r.Annee === TW_DB.year && r.StatutDemande === 'Accordé');
+        const days = approved.reduce((s, r) => s + r.NbJours, 0);
+        return { ...emp, days };
+      }).sort((a, b) => b.days - a.days);
+
+      document.getElementById('twTbodyAbsenteeism').innerHTML = list.map((r, i) => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 text-center font-mono font-bold ${i < 3 ? 'text-blue-600' : 'text-slate-400'}">#${i + 1}</td>
+          <td class="p-3 font-mono font-bold">${r.Matricule}</td>
+          <td class="p-3 font-semibold">${r.Nom}</td>
+          <td class="p-3 text-slate-600">${r.Direction}</td>
+          <td class="p-3 text-center font-mono font-bold text-rose-600">${r.days} j</td>
+          <td class="p-3 text-center font-mono">${Math.round((r.days / 30) * 100)}%</td>
+        </tr>
+      `).join('');
+    }
+
+    function twRenderRecap() {
+      const sel = document.getElementById('twRecapSelect');
+      if (sel.options.length === 0) {
+        sel.innerHTML = TW_DB.employees.map(e => `<option value="${e.Matricule}">${e.Matricule} — ${e.Nom}</option>`).join('');
+      }
+      const mat = sel.value || 'M0121';
+      const emp = TW_DB.employees.find(e => e.Matricule === mat);
+      if (!emp) return;
+
+      const caTaken = TW_DB.requests.filter(r => r.Matricule === mat && r.CodeType === 'CA' && r.Annee === TW_DB.year && r.StatutDemande === 'Accordé').reduce((s, r) => s + r.NbJours, 0);
+      const cmTaken = TW_DB.requests.filter(r => r.Matricule === mat && r.CodeType === 'CM' && r.Annee === TW_DB.year && r.StatutDemande === 'Accordé').reduce((s, r) => s + r.NbJours, 0);
+
+      document.getElementById('twRecapContent').innerHTML = `
+        <div class="border-b pb-3 flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold">GESTION RH – FICHE RÉCAPITULATIVE DES CONGÉS</h3>
+            <span class="text-xs text-slate-400">Exercice ${TW_DB.year}</span>
+          </div>
+          <span class="font-mono font-bold text-xs bg-slate-100 p-1.5 rounded">${emp.Matricule}</span>
+        </div>
+        <div class="grid grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl text-xs">
+          <div><span class="text-slate-400 block text-[10px]">NOM</span><strong>${emp.Nom}</strong></div>
+          <div><span class="text-slate-400 block text-[10px]">DIRECTION</span><strong>${emp.Direction}</strong></div>
+          <div><span class="text-slate-400 block text-[10px]">CATÉGORIE</span><strong>${emp.Categorie}</strong></div>
+          <div><span class="text-slate-400 block text-[10px]">SEXE</span><strong>${emp.Sexe}</strong></div>
+        </div>
+        <table class="w-full text-xs text-left border rounded-xl overflow-hidden">
+          <thead class="bg-slate-100 font-bold"><tr><th class="p-2.5">Type</th><th class="p-2.5 text-center">Solde max</th><th class="p-2.5 text-center">Accordé</th><th class="p-2.5 text-center">Restant</th><th class="p-2.5 text-center">Observation</th></tr></thead>
+          <tbody class="divide-y">
+            <tr><td class="p-2.5 font-semibold">Congé annuel (CA)</td><td class="p-2.5 text-center font-mono">30 j</td><td class="p-2.5 text-center font-mono text-emerald-600 font-bold">${caTaken} j</td><td class="p-2.5 text-center font-mono font-bold">${30 - caTaken} j</td><td class="p-2.5 text-center font-bold ${30 - caTaken <= 5 ? 'text-amber-600' : 'text-emerald-600'}">${30 - caTaken === 0 ? 'ALERTE' : 30 - caTaken <= 5 ? 'SOLDE FAIBLE' : 'ACCORDÉ'}</td></tr>
+            <tr><td class="p-2.5 font-semibold">Congé maladie (CM)</td><td class="p-2.5 text-center font-mono">10 j</td><td class="p-2.5 text-center font-mono text-emerald-600 font-bold">${cmTaken} j</td><td class="p-2.5 text-center font-mono font-bold">${10 - cmTaken} j</td><td class="p-2.5 text-center text-emerald-600 font-bold">ACCORDÉ</td></tr>
+          </tbody>
+        </table>
+      `;
+    }
+
+    function twDownloadRecapPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text('FICHE RÉCAPITULATIVE INDIVIDUELLE DES CONGÉS', 14, 20);
+      const sel = document.getElementById('twRecapSelect');
+      const emp = TW_DB.employees.find(e => e.Matricule === sel.value);
+      doc.text(`Agent : ${emp.Nom} (${emp.Matricule}) - ${emp.Direction}`, 14, 28);
+      doc.autoTable({
+        startY: 35,
+        head: [['Type', 'Solde max', 'Accordé', 'Restant']],
+        body: [['Congé annuel (CA)', '30 j', '15 j', '15 j'], ['Congé maladie (CM)', '10 j', '3 j', '7 j']]
+      });
+      doc.save(`Fiche_Recap_${emp.Matricule}.pdf`);
+    }
+
+    function twExportAnnualPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text(`RAPPORT ANNUEL DES CONGÉS (${TW_DB.year})`, 14, 20);
+      doc.autoTable({ startY: 30, head: [['Réf', 'Agent', 'Type', 'Durée', 'Statut']], body: TW_DB.requests.map(r => [r.IdDemande, r.Matricule, r.CodeType, `${r.NbJours} j`, r.StatutDemande]) });
+      doc.save(`Rapport_Annuel_${TW_DB.year}.pdf`);
+    }
+
+    function twExportEmpExcel() {
+      const ws = XLSX.utils.json_to_sheet(TW_DB.employees);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Employés');
+      XLSX.writeFile(wb, 'Employes.xlsx');
+    }
+
+    function twExportEmpPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l');
+      doc.text('RÉPERTOIRE DU PERSONNEL', 14, 18);
+      doc.autoTable({ startY: 25, head: [['Matricule', 'Nom', 'Direction', 'Catégorie']], body: TW_DB.employees.map(e => [e.Matricule, e.Nom, e.Direction, e.Categorie]) });
+      doc.save('Employes.pdf');
+    }
+
+    function twExportReqExcel() {
+      const ws = XLSX.utils.json_to_sheet(TW_DB.requests);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Demandes');
+      XLSX.writeFile(wb, 'Demandes.xlsx');
+    }
+
+    function twExportReqPdf() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l');
+      doc.text('REGISTRE DES DEMANDES', 14, 18);
+      doc.autoTable({ startY: 25, head: [['Réf', 'Matricule', 'Type', 'Début', 'Fin', 'Durée']], body: TW_DB.requests.map(r => [r.IdDemande, r.Matricule, r.CodeType, r.DateDebut, r.DateFin, `${r.NbJours} j`]) });
+      doc.save('Demandes.pdf');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      twRenderDashboard();
+    });
+  </script>
+</body>
+</html>
